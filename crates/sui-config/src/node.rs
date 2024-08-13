@@ -19,7 +19,6 @@ use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
-use std::usize;
 use sui_keys::keypair_file::{read_authority_keypair_from_file, read_keypair_from_file};
 use sui_types::base_types::{ObjectID, SuiAddress};
 use sui_types::committee::EpochId;
@@ -216,10 +215,31 @@ pub enum ServerType {
     Both,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, Default)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct TransactionKeyValueStoreReadConfig {
+    #[serde(default = "default_base_url")]
     pub base_url: String,
+
+    #[serde(default = "default_cache_size")]
+    pub cache_size: u64,
+}
+
+impl Default for TransactionKeyValueStoreReadConfig {
+    fn default() -> Self {
+        Self {
+            base_url: default_base_url(),
+            cache_size: default_cache_size(),
+        }
+    }
+}
+
+fn default_base_url() -> String {
+    "https://transactions.sui.io/".to_string()
+}
+
+fn default_cache_size() -> u64 {
+    100_000
 }
 
 fn default_jwk_fetch_interval_seconds() -> u64 {
@@ -262,9 +282,7 @@ pub fn default_zklogin_oauth_providers() -> BTreeMap<Chain, BTreeSet<String>> {
 }
 
 fn default_transaction_kv_store_config() -> TransactionKeyValueStoreReadConfig {
-    TransactionKeyValueStoreReadConfig {
-        base_url: "https://transactions.sui.io/".to_string(),
-    }
+    TransactionKeyValueStoreReadConfig::default()
 }
 
 fn default_authority_store_pruning_config() -> AuthorityStorePruningConfig {

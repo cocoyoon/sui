@@ -306,8 +306,8 @@ Response: {
       "pageInfo": {
         "hasNextPage": false,
         "hasPreviousPage": false,
-        "endCursor": "eyJjIjozLCJ0IjoxMSwiaSI6ZmFsc2V9",
-        "startCursor": "eyJjIjozLCJ0IjoyLCJpIjpmYWxzZX0"
+        "endCursor": "eyJjIjozLCJ0IjoxMSwiaSI6dHJ1ZX0",
+        "startCursor": "eyJjIjozLCJ0IjoyLCJpIjp0cnVlfQ"
       },
       "nodes": [
         {
@@ -426,8 +426,8 @@ Response: {
       "pageInfo": {
         "hasNextPage": false,
         "hasPreviousPage": false,
-        "endCursor": "eyJjIjozLCJ0IjoxMSwiaSI6ZmFsc2V9",
-        "startCursor": "eyJjIjozLCJ0IjoyLCJpIjpmYWxzZX0"
+        "endCursor": "eyJjIjozLCJ0IjoxMSwiaSI6dHJ1ZX0",
+        "startCursor": "eyJjIjozLCJ0IjoyLCJpIjp0cnVlfQ"
       },
       "nodes": [
         {
@@ -546,8 +546,8 @@ Response: {
       "pageInfo": {
         "hasNextPage": false,
         "hasPreviousPage": false,
-        "endCursor": null,
-        "startCursor": null
+        "endCursor": "eyJjIjozLCJ0IjoxMSwiaSI6dHJ1ZX0",
+        "startCursor": "eyJjIjozLCJ0IjoyLCJpIjp0cnVlfQ"
       },
       "nodes": []
     }
@@ -577,23 +577,26 @@ Response: {
   ]
 }
 
-task 24, lines 245-264:
+task 24, lines 245-269:
 //# run-graphql
 Response: {
   "data": {
     "transactionBlocks": {
       "pageInfo": {
-        "hasNextPage": false,
         "hasPreviousPage": false,
-        "endCursor": "eyJjIjozLCJ0IjoyLCJpIjpmYWxzZX0",
-        "startCursor": "eyJjIjozLCJ0IjoyLCJpIjpmYWxzZX0"
+        "hasNextPage": false,
+        "startCursor": "eyJjIjozLCJ0IjoyLCJpIjp0cnVlfQ",
+        "endCursor": "eyJjIjozLCJ0IjoxMSwiaSI6dHJ1ZX0"
       },
-      "nodes": [
+      "edges": [
         {
-          "digest": "HzyC8gcn4m1ymKxYSpWMaNnmbrqm4hX7UBteJ4me3LFd",
-          "effects": {
-            "checkpoint": {
-              "sequenceNumber": 2
+          "cursor": "eyJjIjozLCJ0IjoyLCJpIjpmYWxzZX0",
+          "node": {
+            "digest": "HzyC8gcn4m1ymKxYSpWMaNnmbrqm4hX7UBteJ4me3LFd",
+            "effects": {
+              "checkpoint": {
+                "sequenceNumber": 2
+              }
             }
           }
         }

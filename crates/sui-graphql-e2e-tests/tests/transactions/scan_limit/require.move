@@ -243,20 +243,25 @@ module Test::M1 {
 }
 
 //# run-graphql
-# valid
+# Only one of the transactions will match this filter
+# Because scanLimit is specified, the boundary cursors should be at 2 and 11,
+# and both will indicate is_scan_limited
 {
   transactionBlocks(scanLimit: 50 filter: {signAddress: "@{A}" recvAddress: "@{B}" afterCheckpoint: 1 beforeCheckpoint: 4 changedObject: "@{obj_3_0}"}) {
     pageInfo {
-      hasNextPage
       hasPreviousPage
-      endCursor
+      hasNextPage
       startCursor
+      endCursor
     }
-    nodes {
-      digest
-      effects {
-        checkpoint {
-          sequenceNumber
+    edges {
+      cursor
+      node {
+        digest
+        effects {
+          checkpoint {
+            sequenceNumber
+          }
         }
       }
     }

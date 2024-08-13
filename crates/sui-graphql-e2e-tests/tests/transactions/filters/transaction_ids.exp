@@ -86,8 +86,8 @@ Response: {
       "pageInfo": {
         "hasNextPage": false,
         "hasPreviousPage": false,
-        "endCursor": null,
-        "startCursor": null
+        "endCursor": "eyJjIjoyLCJ0IjoyLCJpIjp0cnVlfQ",
+        "startCursor": "eyJjIjoyLCJ0IjowLCJpIjp0cnVlfQ"
       },
       "nodes": []
     }

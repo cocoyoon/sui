@@ -103,12 +103,18 @@ pub(crate) trait Target<C: CursorType> {
     fn cursor(&self, checkpoint_viewed_at: u64) -> C;
 }
 
-/// A trait indicating whether a cursor was derived from a `scan_limit` or not. If the latter, then
-/// it came from either tip of the paginated response, and should appear in the current result set.
-/// Otherwise, a cursor that stems from a `scan_limit` is not expected to be in the result set.
+/// Interface for dealing with cursors that may come from a `scan_limit`-ed query.
 pub(crate) trait ScanLimited: Clone + PartialEq {
+    /// Whether the cursor was derived from a `scan_limit`. Only applicable to the `startCursor` and
+    /// `endCursor` returned from a Connection's `PageInfo`, and indicates that the cursor may not
+    /// have a corresponding node in the result set.
     fn is_scan_limited(&self) -> bool {
         false
+    }
+
+    /// Returns a version of the cursor that is not scan limited.
+    fn unlimited(&self) -> Self {
+        self.clone()
     }
 }
 
@@ -395,8 +401,9 @@ impl<C: CursorType + ScanLimited + Eq + Clone + Send + Sync + 'static> Page<C> {
         results: Vec<T>,
     ) -> (bool, bool, impl Iterator<Item = T>)
     where
-        T: Send + 'static,
+        T: Target<C> + Send + 'static,
     {
+        println!("results len: {}", results.len());
         // Detect whether the results imply the existence of a previous or next page.
         let (prev, next, prefix, suffix) =
             match (self.after(), f_cursor, l_cursor, self.before(), self.end) {
@@ -427,15 +434,22 @@ impl<C: CursorType + ScanLimited + Eq + Clone + Send + Sync + 'static> Page<C> {
                 // results than the provided limit, and/ or if the end cursor element appears in the
                 // result set.
                 (after, Some(f), Some(l), before, End::Front) => {
-                    let has_previous_page = after.is_some_and(|a| *a == f);
+                    let has_previous_page = after.is_some_and(|a| a.unlimited() == f);
+                    println!("has_previous_page: {}", has_previous_page);
                     let prefix = has_previous_page as usize;
 
                     // If results end with the before cursor, we will at least need to trim one element
                     // from the suffix and we trim more off the end if there is more after applying the
                     // limit.
-                    let mut suffix = before.is_some_and(|b| *b == l) as usize;
+                    let mut suffix = before.is_some_and(|b| b.unlimited() == l) as usize;
+                    println!("suffix from before: {}", suffix);
                     suffix += results.len().saturating_sub(self.limit() + prefix + suffix);
+                    println!(
+                        "suffix from results.len - (limit + prefix + suffix): {}",
+                        suffix
+                    );
                     let has_next_page = suffix > 0;
+                    println!("has_next_page: {}", has_next_page);
 
                     (has_previous_page, has_next_page, prefix, suffix)
                 }
@@ -444,10 +458,11 @@ impl<C: CursorType + ScanLimited + Eq + Clone + Send + Sync + 'static> Page<C> {
                 (after, Some(f), Some(l), before, End::Back) => {
                     // There is a next page if the last element of the results matches the `before`.
                     // This last element will get pruned from the result set.
-                    let has_next_page = before.is_some_and(|b| *b == l);
+                    let has_next_page = before.is_some_and(|b| b.unlimited() == l);
                     let suffix = has_next_page as usize;
+                    println!("drawing from the back, suffix: {}", suffix);
 
-                    let mut prefix = after.is_some_and(|a| *a == f) as usize;
+                    let mut prefix = after.is_some_and(|a| a.unlimited() == f) as usize;
                     prefix += results.len().saturating_sub(self.limit() + prefix + suffix);
                     let has_previous_page = prefix > 0;
 
@@ -470,6 +485,9 @@ impl<C: CursorType + ScanLimited + Eq + Clone + Send + Sync + 'static> Page<C> {
         if suffix > 0 {
             results.nth_back(suffix - 1);
         }
+
+        println!("results len now: {}", results.len());
+        println!("prefix: {}, suffix: {}", prefix, suffix);
 
         (prev, next, results)
     }

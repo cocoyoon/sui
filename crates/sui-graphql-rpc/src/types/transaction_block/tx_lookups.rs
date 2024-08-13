@@ -23,11 +23,11 @@ use sui_indexer::schema::checkpoints;
 
 #[derive(Clone, Debug, Copy)]
 pub(crate) struct TxBounds {
-    /// The lower bound tx_sequence_number corresponding to the first tx_sequence_number of the
-    /// lower checkpoint bound before applying `after` cursor and `scan_limit`.
+    /// The inclusive lower bound tx_sequence_number corresponding to the first tx_sequence_number
+    /// of the lower checkpoint bound before applying `after` cursor and `scan_limit`.
     pub lo: u64,
-    /// The upper bound tx_sequence_number corresponding to the last tx_sequence_number of the upper
-    /// checkpoint bound before applying `before` cursor and `scan_limit`.
+    /// The inclusive upper bound tx_sequence_number corresponding to the last tx_sequence_number of
+    /// the upper checkpoint bound before applying `before` cursor and `scan_limit`.
     pub hi: u64,
     pub after: Option<u64>,
     pub before: Option<u64>,
@@ -131,20 +131,20 @@ impl TxBounds {
         )))
     }
 
-    // Returns the larger of the current checkpoint lower bound, or the `after` checkpoint cursor.
+    /// Returns the max of the current tx lower bound or the `after` tx cursor.
     fn tx_lo(&self) -> u64 {
         max_option([self.after, Some(self.lo)]).unwrap()
     }
 
-    // Returns the smaller of the current checkpoint upper bound, or the `before` checkpoint cursor.
+    /// Returns the min of the current tx upper bound or the `before` tx cursor.
     fn tx_hi(&self) -> u64 {
         min_option([self.before, Some(self.hi)]).unwrap()
     }
 
     /// The lower bound `tx_sequence_number` of the range to scan within. When paginating forwards,
-    /// this is the min `tx_sequence_number` from the lesser checkpoint of the scanning range. If
-    /// scanning backwards, then this is the max `tx_sequence_number` between the former and the
-    /// upper `tx_sequence_number` bound adjusted by `scan_limit`.
+    /// this is the larger value between the lower checkpoint's `tx_sequence_number` and the `after`
+    /// cursor. If scanning backwards, then the lower bound is the larger between the former and the
+    /// `tx_sequence_number` some `scan_limit` distance less than the upper bound.
     pub(crate) fn scan_lo(&self) -> u64 {
         let adjusted_lo = self.tx_lo();
 
@@ -163,10 +163,10 @@ impl TxBounds {
         }
     }
 
-    /// The upper bound `tx_sequence_number` of the range to scan within.  When paginating backwards,
-    /// this is the max `tx_sequence_number` from the upper checkpoint of the scanning range. If
-    /// scanning forwards, then this is the min `tx_sequence_number` between the former and the
-    /// lesser `tx_sequence_number` bound adjusted by `scan_limit`.
+    /// The upper bound `tx_sequence_number` of the range to scan within. When paginating backwards,
+    /// this is the smaller value between the upper checkpoint's `tx_sequence_number` and the
+    /// `before` cursor. If scanning forwards, then the upper bound is the smaller between the
+    /// former and the `tx_sequence_number` some `scan_limit` distance more than the lower bound.
     pub(crate) fn scan_hi(&self) -> u64 {
         let adjusted_hi = self.tx_hi();
 
@@ -185,14 +185,12 @@ impl TxBounds {
         }
     }
 
-    /// If the query result does not have a previous page, check whether the current page's starting
-    /// tip is within the scanning range.
+    /// Whether there are more transactions to scan to the left of this page.
     pub(crate) fn scan_has_prev_page(&self) -> bool {
         self.lo < self.scan_lo()
     }
 
-    /// If the query result does not have a next page, check whether the current page's ending tip
-    /// is within the scanning range.
+    /// Whether there are more transactions to scan to the right of this page.
     pub(crate) fn scan_has_next_page(&self) -> bool {
         self.scan_hi() < self.hi
     }

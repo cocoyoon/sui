@@ -272,6 +272,7 @@ impl TransactionBlock {
         checkpoint_viewed_at: u64,
         scan_limit: Option<u64>,
     ) -> Result<ScanConnection<String, TransactionBlock>, Error> {
+        println!("entered TransactionBlock::paginate");
         if filter.is_empty() {
             return Ok(ScanConnection::new(false, false));
         }
@@ -358,6 +359,13 @@ impl TransactionBlock {
                         .map(|x| x.tx_sequence_number)
                         .collect::<Vec<i64>>();
 
+                    println!(
+                        "how many tx_sequence_numbers: {}",
+                        tx_sequence_numbers.len()
+                    );
+
+                    println!("tx_sequence_numbers: {:?}", tx_sequence_numbers);
+
                     let transactions = conn.results(move || {
                         tx::transactions
                             .filter(tx::tx_sequence_number.eq_any(tx_sequence_numbers.clone()))
@@ -376,14 +384,15 @@ impl TransactionBlock {
             return Ok(conn);
         };
 
-        apply_scan_limited_pagination(
-            &mut conn,
-            &page_clone,
-            &transactions,
-            tx_bounds,
-            scan_limit,
-            checkpoint_viewed_at,
+        println!(
+            "scan_lo: {:?}, scan_hi: {:?}",
+            tx_bounds.scan_lo(),
+            tx_bounds.scan_hi()
         );
+
+        if scan_limit.is_some() {
+            apply_scan_limited_pagination(&mut conn, &page_clone, tx_bounds, checkpoint_viewed_at);
+        }
 
         for stored in transactions {
             let cursor = stored.cursor(checkpoint_viewed_at).encode_cursor();
@@ -512,146 +521,85 @@ impl TryFrom<TransactionBlockEffects> for TransactionBlock {
 fn apply_scan_limited_pagination(
     conn: &mut ScanConnection<String, TransactionBlock>,
     page: &Page<Cursor>,
-    transactions: &Vec<StoredTransaction>,
     tx_bounds: TxBounds,
-    scan_limit: Option<u64>,
     checkpoint_viewed_at: u64,
 ) {
     if page.is_from_front() {
-        apply_forward_scan_limited_pagination(
-            conn,
-            page,
-            transactions,
-            tx_bounds,
-            scan_limit,
-            checkpoint_viewed_at,
-        );
+        apply_forward_scan_limited_pagination(conn, page, tx_bounds, checkpoint_viewed_at);
     } else {
-        apply_backward_scan_limited_pagination(
-            conn,
-            page,
-            transactions,
-            tx_bounds,
-            scan_limit,
-            checkpoint_viewed_at,
-        );
+        apply_backward_scan_limited_pagination(conn, page, tx_bounds, checkpoint_viewed_at);
     }
 }
 
+/// If a query is `scan_limited`, we will always modify the boundary cursors to the first and last
+/// transaction scanned, and adjust the `has_previous_page` and `has_next_page` flags per the new
+/// boundaries.
 fn apply_forward_scan_limited_pagination(
     conn: &mut ScanConnection<String, TransactionBlock>,
     page: &Page<Cursor>,
-    transactions: &Vec<StoredTransaction>,
     tx_bounds: TxBounds,
-    scan_limit: Option<u64>,
     checkpoint_viewed_at: u64,
 ) {
-    if !conn.has_previous_page {
-        // There are two special scenarios to consider when `has_previous_page` is false:
-        // 1. The cursor is scan-limited - then the corresponding element would not be in results,
-        //    which means we consequently report that there is no preceding page.
-        // 2. `scan_limit` is set, and we get an empty result set - then we report that there is no
-        //    preceding page.
-        // In both scenarios, we want to override the default behavior and set the new `startCursor`
-        // to 1 greater than the given `after` cursor.
+    conn.has_previous_page = tx_bounds.scan_has_prev_page();
+    conn.start_cursor = Some(
+        Cursor::new(cursor::TransactionBlockCursor {
+            checkpoint_viewed_at,
+            tx_sequence_number: page
+                .after()
+                // If a cursor has been provided, we increment by 1 so that the cursor's element
+                // will appear in the previous page
+                .map_or(tx_bounds.scan_lo(), |c| c.tx_sequence_number + 1),
+            is_scan_limited: true,
+        })
+        .encode_cursor(),
+    );
 
-        if let Some(after) = page.after() {
-            if (after.is_scan_limited || scan_limit.is_some())
-                && after.tx_sequence_number > tx_bounds.lo
-            {
-                // When dealing with `scan_limit`, the first scanned transaction serves as the
-                // `startCursor`. This will always be 1 greater than the given `after` cursor.
-                let starting_tx_sequence_number = after.tx_sequence_number + 1;
+    // can simplify to scan_limit.is_some()
+    println!("no next page?");
+    // There are 4 scenarios that will yield `has_next_page=false`:
+    // 1. met `limit`, `paginate_results` doesn't detect more results + more to scan
+    // 2. met `limit`, `paginate_Results` doesn't detect more results + no more to scan
+    // 3. less than `limit`, `paginate_results` doesn't detect more results + more to scan
+    // 4. less than `limit`, `paginate_results` doesn't detect more results + no more to scan
+    // Regardless of the scenario, we can set the `endCursor` to the last transaction scanned.
 
-                // It is possible for the first scanned transaction to show up in the result set,
-                // and if so we should flip `is_scan_limited` to false.
-                let is_scan_limited = transactions.first().map_or(true, |tx| {
-                    tx.tx_sequence_number as u64 != starting_tx_sequence_number
-                });
-                let start_cursor = cursor::TransactionBlockCursor {
-                    checkpoint_viewed_at,
-                    tx_sequence_number: starting_tx_sequence_number,
-                    is_scan_limited,
-                };
-
-                conn.has_previous_page = true;
-                conn.start_cursor = Some(Cursor::new(start_cursor).encode_cursor());
-            }
-        }
-    }
-
-    if !conn.has_next_page && scan_limit.is_some() && tx_bounds.scan_has_next_page() {
-        // There are 4 scenarios that will yield `has_next_page=false`:
-        // 1. met `limit`, `paginate_results` doesn't detect more results + more to scan
-        // 2. met `limit`, `paginate_Results` doesn't detect more results + no more to scan
-        // 3. less than `limit`, `paginate_results` doesn't detect more results + more to scan
-        // 4. less than `limit`, `paginate_results` doesn't detect more results + no more to scan
-        // Regardless of the scenario, we can set the `endCursor` to the last transaction scanned.
-
-        let scan_hi = tx_bounds.scan_hi();
-
-        conn.has_next_page = true;
-        conn.end_cursor = Some(
-            Cursor::new(cursor::TransactionBlockCursor {
-                checkpoint_viewed_at,
-                tx_sequence_number: scan_hi,
-                is_scan_limited: transactions
-                    .last()
-                    .map_or(true, |tx| tx.tx_sequence_number as u64 != scan_hi),
-            })
-            .encode_cursor(),
-        );
-    }
+    // and use scan_has_next_page() to determine whether there is a next page
+    conn.has_next_page = tx_bounds.scan_has_next_page();
+    conn.end_cursor = Some(
+        Cursor::new(cursor::TransactionBlockCursor {
+            checkpoint_viewed_at,
+            tx_sequence_number: tx_bounds.scan_hi(),
+            is_scan_limited: true,
+        })
+        .encode_cursor(),
+    );
 }
 
 fn apply_backward_scan_limited_pagination(
     conn: &mut ScanConnection<String, TransactionBlock>,
     page: &Page<Cursor>,
-    transactions: &Vec<StoredTransaction>,
     tx_bounds: TxBounds,
-    scan_limit: Option<u64>,
     checkpoint_viewed_at: u64,
 ) {
-    if !conn.has_next_page {
-        if let Some(before) = page.before() {
-            if (before.is_scan_limited || scan_limit.is_some())
-                && before.tx_sequence_number < tx_bounds.hi
-            {
-                // When dealing with `scan_limit`, the last scanned transaction serves as the
-                // `endCursor`.
-                let ending_tx_sequence_number = before.tx_sequence_number - 1;
+    conn.has_next_page = tx_bounds.scan_has_next_page();
+    conn.end_cursor = Some(
+        Cursor::new(cursor::TransactionBlockCursor {
+            checkpoint_viewed_at,
+            tx_sequence_number: page
+                .before()
+                .map_or(tx_bounds.scan_hi(), |c| c.tx_sequence_number - 1),
+            is_scan_limited: true,
+        })
+        .encode_cursor(),
+    );
 
-                let is_scan_limited = transactions.last().map_or(true, |tx| {
-                    tx.tx_sequence_number as u64 != ending_tx_sequence_number
-                });
-
-                let end_cursor = cursor::TransactionBlockCursor {
-                    checkpoint_viewed_at,
-                    tx_sequence_number: ending_tx_sequence_number,
-                    is_scan_limited,
-                };
-
-                conn.has_next_page = true;
-                conn.end_cursor = Some(Cursor::new(end_cursor).encode_cursor());
-            }
-        }
-    }
-
-    if !conn.has_previous_page {
-        if scan_limit.is_some() && tx_bounds.scan_has_prev_page() {
-            let scan_lo = tx_bounds.scan_lo();
-
-            conn.has_previous_page = true;
-            conn.start_cursor = Some(
-                Cursor::new(cursor::TransactionBlockCursor {
-                    checkpoint_viewed_at,
-                    tx_sequence_number: scan_lo,
-                    is_scan_limited: transactions
-                        .first()
-                        .map_or(true, |tx| tx.tx_sequence_number as u64 != scan_lo),
-                })
-                .encode_cursor(),
-            );
-        }
-    }
+    conn.has_previous_page = tx_bounds.scan_has_prev_page();
+    conn.start_cursor = Some(
+        Cursor::new(cursor::TransactionBlockCursor {
+            checkpoint_viewed_at,
+            tx_sequence_number: tx_bounds.scan_lo(),
+            is_scan_limited: true,
+        })
+        .encode_cursor(),
+    );
 }

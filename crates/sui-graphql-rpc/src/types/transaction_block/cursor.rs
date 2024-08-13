@@ -30,6 +30,9 @@ pub(crate) struct TransactionBlockCursor {
     pub checkpoint_viewed_at: u64,
     #[serde(rename = "t")]
     pub tx_sequence_number: u64,
+    /// Whether the cursor was derived from a `scan_limit`. Only applicable to the `startCursor` and
+    /// `endCursor` returned from a Connection's `PageInfo`, and indicates that the cursor may not
+    /// have a corresponding node in the result set.
     #[serde(rename = "i")]
     pub is_scan_limited: bool,
 }
@@ -51,6 +54,14 @@ impl Checkpointed for Cursor {
 impl ScanLimited for Cursor {
     fn is_scan_limited(&self) -> bool {
         self.is_scan_limited
+    }
+
+    fn unlimited(&self) -> Self {
+        Cursor::new(TransactionBlockCursor {
+            is_scan_limited: false,
+            tx_sequence_number: self.tx_sequence_number,
+            checkpoint_viewed_at: self.checkpoint_viewed_at,
+        })
     }
 }
 

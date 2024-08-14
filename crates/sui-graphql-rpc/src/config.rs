@@ -24,6 +24,7 @@ pub struct ServerConfig {
 }
 
 /// Configuration for connections for the RPC, passed in as command-line arguments. This configures
+/// specific connections between this service and other services, and might differ from instance to
 /// instance of the GraphQL service.
 #[GraphQLConfig]
 #[derive(Clone, Eq, PartialEq)]

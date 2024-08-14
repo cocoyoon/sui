@@ -1,4 +1,4 @@
-processed 37 tasks
+processed 34 tasks
 
 init:
 A: object(0,0), B: object(0,1)
@@ -155,10 +155,10 @@ Response: {
   "data": {
     "transactionBlocks": {
       "pageInfo": {
-        "startCursor": "eyJjIjo1LCJ0IjoyLCJpIjpmYWxzZX0",
         "hasPreviousPage": false,
-        "endCursor": "eyJjIjo1LCJ0IjoyMSwiaSI6ZmFsc2V9",
-        "hasNextPage": false
+        "hasNextPage": false,
+        "startCursor": "eyJjIjo1LCJ0IjoyLCJpIjpmYWxzZX0",
+        "endCursor": "eyJjIjo1LCJ0IjoyMSwiaSI6ZmFsc2V9"
       },
       "edges": [
         {
@@ -210,16 +210,16 @@ Response: {
   }
 }
 
-task 28, lines 103-127:
+task 28, lines 103-125:
 //# run-graphql
 Response: {
   "data": {
     "transactionBlocks": {
       "pageInfo": {
-        "startCursor": "eyJjIjo1LCJ0IjoyMSwiaSI6ZmFsc2V9",
         "hasPreviousPage": true,
-        "endCursor": "eyJjIjo1LCJ0IjoyMSwiaSI6ZmFsc2V9",
-        "hasNextPage": false
+        "hasNextPage": false,
+        "startCursor": "eyJjIjo1LCJ0IjoyMSwiaSI6ZmFsc2V9",
+        "endCursor": "eyJjIjo1LCJ0IjoyMSwiaSI6dHJ1ZX0"
       },
       "edges": [
         {
@@ -238,16 +238,16 @@ Response: {
   }
 }
 
-task 29, lines 129-155:
+task 29, lines 127-152:
 //# run-graphql --cursors {"c":7,"t":21,"i":false}
 Response: {
   "data": {
     "transactionBlocks": {
       "pageInfo": {
+        "hasPreviousPage": true,
+        "hasNextPage": true,
         "startCursor": "eyJjIjo3LCJ0IjoxNiwiaSI6dHJ1ZX0",
-        "hasPreviousPage": true,
-        "endCursor": "eyJjIjo3LCJ0IjoxNywiaSI6ZmFsc2V9",
-        "hasNextPage": true
+        "endCursor": "eyJjIjo3LCJ0IjoyMCwiaSI6dHJ1ZX0"
       },
       "edges": [
         {
@@ -266,104 +266,48 @@ Response: {
   }
 }
 
-task 30, lines 157-180:
-//# run-graphql --cursors {"c":7,"t":17,"i":false}
-Response: {
-  "data": {
-    "transactionBlocks": {
-      "pageInfo": {
-        "startCursor": "eyJjIjo3LCJ0IjoyMSwiaSI6ZmFsc2V9",
-        "hasPreviousPage": true,
-        "endCursor": "eyJjIjo3LCJ0IjoyMSwiaSI6ZmFsc2V9",
-        "hasNextPage": false
-      },
-      "edges": [
-        {
-          "cursor": "eyJjIjo3LCJ0IjoyMSwiaSI6ZmFsc2V9",
-          "node": {
-            "digest": "G7DhbdbJeze8e5kmVLNY6aVKckM7yfrzadaABv71ssjx",
-            "effects": {
-              "checkpoint": {
-                "sequenceNumber": 5
-              }
-            }
-          }
-        }
-      ]
-    }
-  }
-}
-
-task 31, lines 182-204:
+task 30, lines 154-177:
 //# run-graphql --cursors {"c":7,"t":16,"i":true}
 Response: {
   "data": {
     "transactionBlocks": {
       "pageInfo": {
-        "startCursor": "eyJjIjo3LCJ0IjoxNywiaSI6ZmFsc2V9",
         "hasPreviousPage": true,
-        "endCursor": "eyJjIjo3LCJ0IjoxNywiaSI6ZmFsc2V9",
-        "hasNextPage": true
-      },
-      "edges": [
-        {
-          "cursor": "eyJjIjo3LCJ0IjoxNywiaSI6ZmFsc2V9",
-          "node": {
-            "digest": "BhW3cLzaCgdRYc6jcmXB6DrQ6KaTfmYmb6vBNiu5xPhg",
-            "effects": {
-              "checkpoint": {
-                "sequenceNumber": 5
-              }
-            }
-          }
-        }
-      ]
-    }
-  }
-}
-
-task 32, lines 206-229:
-//# run-graphql --cursors {"c":7,"t":16,"i":true}
-Response: {
-  "data": {
-    "transactionBlocks": {
-      "pageInfo": {
+        "hasNextPage": true,
         "startCursor": "eyJjIjo3LCJ0IjoxMSwiaSI6dHJ1ZX0",
-        "hasPreviousPage": true,
-        "endCursor": "eyJjIjo3LCJ0IjoxNSwiaSI6dHJ1ZX0",
-        "hasNextPage": true
+        "endCursor": "eyJjIjo3LCJ0IjoxNSwiaSI6dHJ1ZX0"
       },
       "edges": []
     }
   }
 }
 
-task 33, lines 231-254:
+task 31, lines 179-201:
 //# run-graphql --cursors {"c":7,"t":11,"i":true}
 Response: {
   "data": {
     "transactionBlocks": {
       "pageInfo": {
-        "startCursor": "eyJjIjo3LCJ0Ijo2LCJpIjp0cnVlfQ",
         "hasPreviousPage": true,
-        "endCursor": "eyJjIjo3LCJ0IjoxMCwiaSI6dHJ1ZX0",
-        "hasNextPage": true
+        "hasNextPage": true,
+        "startCursor": "eyJjIjo3LCJ0Ijo2LCJpIjp0cnVlfQ",
+        "endCursor": "eyJjIjo3LCJ0IjoxMCwiaSI6dHJ1ZX0"
       },
       "edges": []
     }
   }
 }
 
-task 34, lines 256-279:
+task 32, lines 203-227:
 //# run-graphql --cursors {"c":7,"t":6,"i":true}
 Response: {
   "data": {
     "transactionBlocks": {
       "pageInfo": {
-        "startCursor": "eyJjIjo3LCJ0IjozLCJpIjpmYWxzZX0",
         "hasPreviousPage": true,
-        "endCursor": "eyJjIjo3LCJ0Ijo1LCJpIjp0cnVlfQ",
-        "hasNextPage": true
+        "hasNextPage": true,
+        "startCursor": "eyJjIjo3LCJ0IjozLCJpIjpmYWxzZX0",
+        "endCursor": "eyJjIjo3LCJ0Ijo1LCJpIjp0cnVlfQ"
       },
       "edges": [
         {
@@ -382,44 +326,16 @@ Response: {
   }
 }
 
-task 35, lines 281-308:
-//# run-graphql --cursors {"c":7,"t":6,"i":true}
-Response: {
-  "data": {
-    "transactionBlocks": {
-      "pageInfo": {
-        "startCursor": "eyJjIjo3LCJ0IjozLCJpIjpmYWxzZX0",
-        "hasPreviousPage": true,
-        "endCursor": "eyJjIjo3LCJ0Ijo1LCJpIjp0cnVlfQ",
-        "hasNextPage": true
-      },
-      "edges": [
-        {
-          "cursor": "eyJjIjo3LCJ0IjozLCJpIjpmYWxzZX0",
-          "node": {
-            "digest": "BB6bMUxrBJX9wANzzptKnJM3bMVFKnD4xtY8DGWthaH9",
-            "effects": {
-              "checkpoint": {
-                "sequenceNumber": 2
-              }
-            }
-          }
-        }
-      ]
-    }
-  }
-}
-
-task 36, lines 310-332:
+task 33, lines 229-251:
 //# run-graphql --cursors {"c":7,"t":3,"i":false}
 Response: {
   "data": {
     "transactionBlocks": {
       "pageInfo": {
-        "startCursor": "eyJjIjo3LCJ0IjoyLCJpIjpmYWxzZX0",
         "hasPreviousPage": false,
-        "endCursor": "eyJjIjo3LCJ0IjoyLCJpIjpmYWxzZX0",
-        "hasNextPage": true
+        "hasNextPage": true,
+        "startCursor": "eyJjIjo3LCJ0IjoyLCJpIjp0cnVlfQ",
+        "endCursor": "eyJjIjo3LCJ0IjoyLCJpIjp0cnVlfQ"
       },
       "edges": [
         {

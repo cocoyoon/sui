@@ -187,12 +187,19 @@ impl TxBounds {
 
     /// Whether there are more transactions to scan to the left of this page.
     pub(crate) fn scan_has_prev_page(&self) -> bool {
-        self.lo < self.scan_lo()
+        println!("self.lo: {}, self.scan_lo(): {}", self.lo, self.scan_lo());
+        println!("self.tx_lo(): {}", self.tx_lo());
+        println!("after: {:?}", self.after);
+        // ah so here it is. let's say true lo is 2
+        // and that first element at cursor 2 does match
+        // so it makes sense that starting is at 2...
+        // and there should be a next page right
+        self.lo < (self.scan_lo() + self.after.is_some() as u64)
     }
 
     /// Whether there are more transactions to scan to the right of this page.
     pub(crate) fn scan_has_next_page(&self) -> bool {
-        self.scan_hi() < self.hi
+        (self.scan_hi() - self.before.is_some() as u64) < self.hi
     }
 }
 

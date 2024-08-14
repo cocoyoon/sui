@@ -66,7 +66,7 @@ module Test::M1 {
 
 //# run Test::M1::create --args 200 @A --sender A
 
-//# run Test::M1::create --args 201 @B --sender B
+//# run Test::M1::create --args 201 @B --sender A
 
 //# run Test::M1::create --args 202 @B --sender B
 
@@ -80,10 +80,10 @@ module Test::M1 {
 {
   transactionBlocks(filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 6}) {
     pageInfo {
-      startCursor
       hasPreviousPage
-      endCursor
       hasNextPage
+      startCursor
+      endCursor
     }
     edges {
       cursor
@@ -101,13 +101,18 @@ module Test::M1 {
 
 
 //# run-graphql
+# startCursor is 2 and scanLimited, endCursor is 2 and not scanLimited
+# instead of setting the endCursor to the last transaction scanned,
+# we set it to the last transaction in the set
+# this is so we don't end up skipping any other matches in the scan range
+# but beyond the scope of the `limit`
 {
   transactionBlocks(first: 1 scanLimit: 5 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 6}) {
     pageInfo {
-      startCursor
       hasPreviousPage
-      endCursor
       hasNextPage
+      startCursor
+      endCursor
     }
     edges {
       cursor
@@ -124,44 +129,16 @@ module Test::M1 {
 }
 
 //# run-graphql --cursors {"c":7,"t":2,"i":false}
-# the `endCursor` should be at t:7 and should indicate it is a scan-limited cursor.
-# this is because we've returned less than the expected page-size number of results.
-# instead of setting the `endCursor` to the final element of the results,
-# we can return the last transaction scanned.
+# startCursor: 3, endCursor: 7, both are scan-limited
+# endCursor ends at 7, not 3, because we've exhausted all the matches
+# within the window of scanning range, and will overwrite the endCursor to 7.
 {
   transactionBlocks(first: 1 after: "@{cursor_0}" scanLimit: 5 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 6}) {
     pageInfo {
-      startCursor
       hasPreviousPage
-      endCursor
       hasNextPage
-    }
-    edges {
-      cursor
-      node {
-        digest
-        effects {
-          checkpoint {
-            sequenceNumber
-          }
-        }
-      }
-    }
-  }
-}
-
-
-//# run-graphql --cursors {"c":7,"t":3,"i":false}
-# We should not receive this cursor when paginating,
-# but if someone does craft it, we'd expect the result set to be empty.
-# the `endCursor` would now be at t:8, and indicate that it cane from a scan limit.
-{
-  transactionBlocks(first: 1 after: "@{cursor_0}" scanLimit: 5 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 6}) {
-    pageInfo {
       startCursor
-      hasPreviousPage
       endCursor
-      hasNextPage
     }
     edges {
       cursor
@@ -178,17 +155,15 @@ module Test::M1 {
 }
 
 //# run-graphql --cursors {"c":7,"t":7,"i":true}
-# This is another page that will yield an empty result.
-# consequently, the `startCursor` will be at t:8, which is the starting cursor + 1,
-# and it should indicate that it came from a scan limit. Similarly, the `endCursor`
-# would be at t:12, and indicate that it came from a scan limit as well.
+# startCursor: 8, endCursor: 12, both are scan-limited
+# expect an empty set
 {
   transactionBlocks(first: 1 after: "@{cursor_0}" scanLimit: 5 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 6}) {
     pageInfo {
-      startCursor
       hasPreviousPage
-      endCursor
       hasNextPage
+      startCursor
+      endCursor
     }
     edges {
       cursor
@@ -203,22 +178,17 @@ module Test::M1 {
     }
   }
 }
-
 
 //# run-graphql --cursors {"c":7,"t":12,"i":true}
-# Starting but not including t:12, we will scan transactions 13 through 17.
-# Because we have `first` number of transactions, we can use the result set
-# directly to determine the `endCursor`. Coincidentally, this is the same as
-# the scan-limited cursor.
-# Because the given `after` cursor was a scan limited cursor, this page's
-# startCursor is at t:13 and indicates that it also came from a scan limited cursor.
+# startCursor: 13, endCursor: 17, both are scan-limited
+# single element returned, coincidentally also the last scanned transaction
 {
   transactionBlocks(first: 1 after: "@{cursor_0}" scanLimit: 5 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 6}) {
     pageInfo {
-      startCursor
       hasPreviousPage
-      endCursor
       hasNextPage
+      startCursor
+      endCursor
     }
     edges {
       cursor
@@ -234,17 +204,44 @@ module Test::M1 {
   }
 }
 
-//# run-graphql --cursors {"c":7,"t":17,"i":false}
-# The very last transaction in the tx range and in the scanning range
-# matches the criteria. `startCursor = endCursor = t:21` and should not
-# be a scan-limited cursor.
+//# run-graphql --cursors {"c":7,"t":17,"i":true}
+# startCursor: 18 scanLimited, endCursor: 18 not scanLimited
+# this is because we have multiple matches within the scanning range
+# but due to the `first` limit, we return a subset.
+# we don't want to skip over other matches, so we don't push the endCursor out
 {
   transactionBlocks(first: 1 after: "@{cursor_0}" scanLimit: 5 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 6}) {
     pageInfo {
-      startCursor
       hasPreviousPage
-      endCursor
       hasNextPage
+      startCursor
+      endCursor
+    }
+    edges {
+      cursor
+      node {
+        digest
+        effects {
+          checkpoint {
+            sequenceNumber
+          }
+        }
+      }
+    }
+  }
+}
+
+//# run-graphql --cursors {"c":7,"t":18,"i":false}
+# startCursor: 19, endCursor: 21, both are scan-limited
+# single element returned, coincidentally also the last scanned transaction
+# note that the startCursor is 19, not 18 or 21, since we can use the scan-limited behavior
+{
+  transactionBlocks(first: 1 after: "@{cursor_0}" scanLimit: 5 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 6}) {
+    pageInfo {
+      hasPreviousPage
+      hasNextPage
+      startCursor
+      endCursor
     }
     edges {
       cursor

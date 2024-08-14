@@ -1,6 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+// Testing behavior of alternating between a scan-limited and normal query
+
 //# init --protocol-version 48 --addresses Test=0x0 --accounts A B --simulator
 
 //# publish
@@ -30,55 +32,31 @@ module Test::M1 {
 
 //# run Test::M1::create --args 0 @A --sender A
 
-//# run Test::M1::create --args 1 @A --sender A
+//# run Test::M1::create --args 1 @B --sender B
 
-//# run Test::M1::create --args 2 @B --sender B
+//# run Test::M1::create --args 2 @A --sender A
 
 //# run Test::M1::create --args 3 @B --sender B
 
-//# run Test::M1::create --args 4 @B --sender B
+//# run Test::M1::create --args 4 @A --sender A
 
 //# create-checkpoint
 
 //# run Test::M1::create --args 100 @B --sender B
 
-//# run Test::M1::create --args 101 @B --sender B
+//# run Test::M1::create --args 101 @A --sender A
 
 //# run Test::M1::create --args 102 @B --sender B
 
-//# run Test::M1::create --args 103 @B --sender B
+//# run Test::M1::create --args 103 @A --sender A
 
 //# run Test::M1::create --args 104 @B --sender B
 
 //# create-checkpoint
 
-//# run Test::M1::create --args 100 @B --sender B
-
-//# run Test::M1::create --args 101 @B --sender B
-
-//# run Test::M1::create --args 102 @B --sender B
-
-//# run Test::M1::create --args 103 @B --sender B
-
-//# run Test::M1::create --args 104 @B --sender B
-
-//# create-checkpoint
-
-//# run Test::M1::create --args 200 @A --sender A
-
-//# run Test::M1::create --args 201 @B --sender B
-
-//# run Test::M1::create --args 202 @B --sender B
-
-//# run Test::M1::create --args 203 @B --sender B
-
-//# run Test::M1::create --args 204 @A --sender A
-
-//# create-checkpoint
-
 //# run-graphql
 {
-  transactionBlocks(filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 6}) {
+  transactionBlocks(first: 2 scanLimit: 2 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 4}) {
     pageInfo {
       hasPreviousPage
       hasNextPage
@@ -99,11 +77,12 @@ module Test::M1 {
   }
 }
 
-
-//# run-graphql
-# startCursor 21 not scan limited, endCursor 21 is scan limited
+//# run-graphql --cursors {"c":3,"t":3,"i":true}
+# This should return the next two matching transactions after 3,
+# so tx 4 and 6. the boundary cursors should wrap the response set,
+# and both should have isScanLimited set to false
 {
-  transactionBlocks(last: 1 scanLimit: 5 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 6}) {
+  transactionBlocks(first: 2 after: "@{cursor_0}" filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 4}) {
     pageInfo {
       hasPreviousPage
       hasNextPage
@@ -124,13 +103,11 @@ module Test::M1 {
   }
 }
 
-//# run-graphql --cursors {"c":7,"t":21,"i":false}
-# startCursor 16, endCursor 20, both isScanLimited
-# This might be a bit confusing, but the `startCursor` is 16 and not 17 because
-# `scanLimit` is 5 - if we set the `startCursor` to 17, then we will never yield tx 17
-# when paginating the other way, since the cursors are exclusive.
+//# run-graphql --cursors {"c":3,"t":3,"i":true}
+# Meanwhile, because of the scanLimit of 2, the boundary cursors are
+# startCursor: 4, endCursor: 5, and both are scan limited
 {
-  transactionBlocks(last: 1 before: "@{cursor_0}" scanLimit: 5 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 6}) {
+  transactionBlocks(first: 2 after: "@{cursor_0}" scanLimit: 2 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 4}) {
     pageInfo {
       hasPreviousPage
       hasNextPage
@@ -151,11 +128,12 @@ module Test::M1 {
   }
 }
 
-//# run-graphql --cursors {"c":7,"t":16,"i":true}
-# continuing paginating backwards with scan limit
-# startCursor 11, endCursor 15, both scan limited
+//# run-graphql --cursors {"c":3,"t":6,"i":false}
+# From a previous query that was not scan limited, paginate with scan limit
+# startCursor: 7, endCursor: 8, both scan limited
+# response set consists of single tx 8
 {
-  transactionBlocks(last: 1 before: "@{cursor_0}" scanLimit: 5 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 6}) {
+  transactionBlocks(first: 2 after: "@{cursor_0}" scanLimit: 2 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 4}) {
     pageInfo {
       hasPreviousPage
       hasNextPage
@@ -176,10 +154,15 @@ module Test::M1 {
   }
 }
 
-//# run-graphql --cursors {"c":7,"t":11,"i":true}
-# startCursor is 7, endCursor is 10, both scan limited
+//# run-graphql --cursors {"c":3,"t":5,"i":true}
+# from tx 5, select the next two transactions that match
+# setting the scanLimit to impose all of the remaining txs
+# even though we've finished scanning
+# we should indicate there is a next page so we don't skip any txs
+# consequently, the endCursor wraps the result set
+# startCursor: 6, endCursor: 8, endCursor is not scan limited
 {
-  transactionBlocks(last: 1 before: "@{cursor_0}" scanLimit: 5 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 6}) {
+  transactionBlocks(first: 2 after: "@{cursor_0}" scanLimit: 6 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 4}) {
     pageInfo {
       hasPreviousPage
       hasNextPage
@@ -200,12 +183,11 @@ module Test::M1 {
   }
 }
 
-//# run-graphql --cursors {"c":7,"t":6,"i":true}
-# startCursor is 3, not scanLimited, endCursor is 5, scanLimited
-# this is because we found a matching element at tx 3, but within
-# the scanned window there is another tx that we need to return for
+//# run-graphql --cursors {"c":3,"t":8,"i":false}
+# fetch the last tx without scan limit
+# startCursor = endCursor = 10, wrapping the response set
 {
-  transactionBlocks(last: 1 before: "@{cursor_0}" scanLimit: 5 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 6}) {
+  transactionBlocks(first: 2 after: "@{cursor_0}" filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 4}) {
     pageInfo {
       hasPreviousPage
       hasNextPage
@@ -226,10 +208,12 @@ module Test::M1 {
   }
 }
 
-//# run-graphql --cursors {"c":7,"t":3,"i":false}
-# Reached the end
+//# run-graphql --cursors {"c":3,"t":8,"i":false}
+# fetch the last tx with scan limit
+# unlike the not-scan-limited query, the start and end cursors
+# are expanded out to the scanned window, instead of wrapping the response set
 {
-  transactionBlocks(last: 1 before: "@{cursor_0}" scanLimit: 5 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 6}) {
+  transactionBlocks(first: 2 after: "@{cursor_0}" scanLimit: 6 filter: {recvAddress: "@{A}" afterCheckpoint: 1 beforeCheckpoint: 4}) {
     pageInfo {
       hasPreviousPage
       hasNextPage

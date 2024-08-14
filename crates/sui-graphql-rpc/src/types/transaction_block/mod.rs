@@ -272,11 +272,6 @@ impl TransactionBlock {
         checkpoint_viewed_at: u64,
         scan_limit: Option<u64>,
     ) -> Result<ScanConnection<String, TransactionBlock>, Error> {
-        println!("entered TransactionBlock::paginate");
-        if filter.is_empty() {
-            return Ok(ScanConnection::new(false, false));
-        }
-
         let limits = &ctx.data_unchecked::<ServiceConfig>().limits;
 
         // If there is more than one `complex_filter` specified, then the caller has provided some
@@ -303,6 +298,10 @@ impl TransactionBlock {
                     limits.max_transaction_ids
                 )));
             }
+        }
+
+        if filter.is_empty() {
+            return Ok(ScanConnection::new(false, false));
         }
 
         let cursor_viewed_at = page.validate_cursor_consistency()?;
@@ -563,16 +562,20 @@ fn apply_forward_scan_limited_pagination(
     // 4. less than `limit`, `paginate_results` doesn't detect more results + no more to scan
     // Regardless of the scenario, we can set the `endCursor` to the last transaction scanned.
 
-    // and use scan_has_next_page() to determine whether there is a next page
-    conn.has_next_page = tx_bounds.scan_has_next_page();
-    conn.end_cursor = Some(
-        Cursor::new(cursor::TransactionBlockCursor {
-            checkpoint_viewed_at,
-            tx_sequence_number: tx_bounds.scan_hi(),
-            is_scan_limited: true,
-        })
-        .encode_cursor(),
-    );
+    // There may be more results within the scanned range that are truncated, especially if `limit`
+    // is less than `scan_limit`, so only overwrite the end when the base pagination reports no next
+    // page.
+    if !conn.has_next_page {
+        conn.has_next_page = tx_bounds.scan_has_next_page();
+        conn.end_cursor = Some(
+            Cursor::new(cursor::TransactionBlockCursor {
+                checkpoint_viewed_at,
+                tx_sequence_number: tx_bounds.scan_hi(),
+                is_scan_limited: true,
+            })
+            .encode_cursor(),
+        );
+    }
 }
 
 fn apply_backward_scan_limited_pagination(
@@ -593,13 +596,18 @@ fn apply_backward_scan_limited_pagination(
         .encode_cursor(),
     );
 
-    conn.has_previous_page = tx_bounds.scan_has_prev_page();
-    conn.start_cursor = Some(
-        Cursor::new(cursor::TransactionBlockCursor {
-            checkpoint_viewed_at,
-            tx_sequence_number: tx_bounds.scan_lo(),
-            is_scan_limited: true,
-        })
-        .encode_cursor(),
-    );
+    // There may be more results within the scanned range that are truncated, especially if `limit`
+    // is less than `scan_limit`, so only overwrite the end when the base pagination reports no next
+    // page.
+    if !conn.has_previous_page {
+        conn.has_previous_page = tx_bounds.scan_has_prev_page();
+        conn.start_cursor = Some(
+            Cursor::new(cursor::TransactionBlockCursor {
+                checkpoint_viewed_at,
+                tx_sequence_number: tx_bounds.scan_lo(),
+                is_scan_limited: true,
+            })
+            .encode_cursor(),
+        );
+    }
 }

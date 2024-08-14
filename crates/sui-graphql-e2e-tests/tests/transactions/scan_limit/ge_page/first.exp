@@ -122,9 +122,9 @@ mutated: object(0,0)
 gas summary: computation_cost: 1000000, storage_cost: 2302800,  storage_rebate: 978120, non_refundable_storage_fee: 9880
 
 task 22, line 69:
-//# run Test::M1::create --args 201 @B --sender B
+//# run Test::M1::create --args 201 @B --sender A
 created: object(22,0)
-mutated: object(0,1)
+mutated: object(0,0)
 gas summary: computation_cost: 1000000, storage_cost: 2302800,  storage_rebate: 978120, non_refundable_storage_fee: 9880
 
 task 23, line 71:
@@ -155,10 +155,10 @@ Response: {
   "data": {
     "transactionBlocks": {
       "pageInfo": {
-        "startCursor": "eyJjIjo1LCJ0IjoyLCJpIjpmYWxzZX0",
         "hasPreviousPage": false,
-        "endCursor": "eyJjIjo1LCJ0IjoyMSwiaSI6ZmFsc2V9",
-        "hasNextPage": false
+        "hasNextPage": false,
+        "startCursor": "eyJjIjo1LCJ0IjoyLCJpIjpmYWxzZX0",
+        "endCursor": "eyJjIjo1LCJ0IjoyMSwiaSI6ZmFsc2V9"
       },
       "edges": [
         {
@@ -195,9 +195,20 @@ Response: {
           }
         },
         {
+          "cursor": "eyJjIjo1LCJ0IjoxOCwiaSI6ZmFsc2V9",
+          "node": {
+            "digest": "FjpAF5bT173BfV6HLuBdBd2bYevsUVDeJNmYnmJYsTLb",
+            "effects": {
+              "checkpoint": {
+                "sequenceNumber": 5
+              }
+            }
+          }
+        },
+        {
           "cursor": "eyJjIjo1LCJ0IjoyMSwiaSI6ZmFsc2V9",
           "node": {
-            "digest": "G7DhbdbJeze8e5kmVLNY6aVKckM7yfrzadaABv71ssjx",
+            "digest": "Eq611DTcfsBjH1P9Smrv7xFYQZXNtUMgbQCUr5jo3ycJ",
             "effects": {
               "checkpoint": {
                 "sequenceNumber": 5
@@ -210,16 +221,16 @@ Response: {
   }
 }
 
-task 28, lines 103-124:
+task 28, lines 103-129:
 //# run-graphql
 Response: {
   "data": {
     "transactionBlocks": {
       "pageInfo": {
-        "startCursor": "eyJjIjo1LCJ0IjoyLCJpIjpmYWxzZX0",
         "hasPreviousPage": false,
-        "endCursor": "eyJjIjo1LCJ0IjoyLCJpIjpmYWxzZX0",
-        "hasNextPage": true
+        "hasNextPage": true,
+        "startCursor": "eyJjIjo1LCJ0IjoyLCJpIjp0cnVlfQ",
+        "endCursor": "eyJjIjo1LCJ0IjoyLCJpIjpmYWxzZX0"
       },
       "edges": [
         {
@@ -238,16 +249,16 @@ Response: {
   }
 }
 
-task 29, lines 126-151:
+task 29, lines 131-155:
 //# run-graphql --cursors {"c":7,"t":2,"i":false}
 Response: {
   "data": {
     "transactionBlocks": {
       "pageInfo": {
-        "startCursor": "eyJjIjo3LCJ0IjozLCJpIjpmYWxzZX0",
         "hasPreviousPage": true,
-        "endCursor": "eyJjIjo3LCJ0Ijo3LCJpIjp0cnVlfQ",
-        "hasNextPage": true
+        "hasNextPage": true,
+        "startCursor": "eyJjIjo3LCJ0IjozLCJpIjp0cnVlfQ",
+        "endCursor": "eyJjIjo3LCJ0Ijo3LCJpIjp0cnVlfQ"
       },
       "edges": [
         {
@@ -266,48 +277,32 @@ Response: {
   }
 }
 
-task 30, lines 154-178:
-//# run-graphql --cursors {"c":7,"t":3,"i":false}
-Response: {
-  "data": {
-    "transactionBlocks": {
-      "pageInfo": {
-        "startCursor": "eyJjIjo3LCJ0Ijo0LCJpIjp0cnVlfQ",
-        "hasPreviousPage": true,
-        "endCursor": "eyJjIjo3LCJ0Ijo4LCJpIjp0cnVlfQ",
-        "hasNextPage": true
-      },
-      "edges": []
-    }
-  }
-}
-
-task 31, lines 180-205:
+task 30, lines 157-180:
 //# run-graphql --cursors {"c":7,"t":7,"i":true}
 Response: {
   "data": {
     "transactionBlocks": {
       "pageInfo": {
-        "startCursor": "eyJjIjo3LCJ0Ijo4LCJpIjp0cnVlfQ",
         "hasPreviousPage": true,
-        "endCursor": "eyJjIjo3LCJ0IjoxMiwiaSI6dHJ1ZX0",
-        "hasNextPage": true
+        "hasNextPage": true,
+        "startCursor": "eyJjIjo3LCJ0Ijo4LCJpIjp0cnVlfQ",
+        "endCursor": "eyJjIjo3LCJ0IjoxMiwiaSI6dHJ1ZX0"
       },
       "edges": []
     }
   }
 }
 
-task 32, lines 208-235:
+task 31, lines 182-205:
 //# run-graphql --cursors {"c":7,"t":12,"i":true}
 Response: {
   "data": {
     "transactionBlocks": {
       "pageInfo": {
-        "startCursor": "eyJjIjo3LCJ0IjoxMywiaSI6dHJ1ZX0",
         "hasPreviousPage": true,
-        "endCursor": "eyJjIjo3LCJ0IjoxNywiaSI6ZmFsc2V9",
-        "hasNextPage": true
+        "hasNextPage": true,
+        "startCursor": "eyJjIjo3LCJ0IjoxMywiaSI6dHJ1ZX0",
+        "endCursor": "eyJjIjo3LCJ0IjoxNywiaSI6dHJ1ZX0"
       },
       "edges": [
         {
@@ -326,22 +321,50 @@ Response: {
   }
 }
 
-task 33, lines 237-261:
-//# run-graphql --cursors {"c":7,"t":17,"i":false}
+task 32, lines 207-232:
+//# run-graphql --cursors {"c":7,"t":17,"i":true}
 Response: {
   "data": {
     "transactionBlocks": {
       "pageInfo": {
-        "startCursor": "eyJjIjo3LCJ0IjoyMSwiaSI6ZmFsc2V9",
         "hasPreviousPage": true,
-        "endCursor": "eyJjIjo3LCJ0IjoyMSwiaSI6ZmFsc2V9",
-        "hasNextPage": false
+        "hasNextPage": true,
+        "startCursor": "eyJjIjo3LCJ0IjoxOCwiaSI6dHJ1ZX0",
+        "endCursor": "eyJjIjo3LCJ0IjoxOCwiaSI6ZmFsc2V9"
+      },
+      "edges": [
+        {
+          "cursor": "eyJjIjo3LCJ0IjoxOCwiaSI6ZmFsc2V9",
+          "node": {
+            "digest": "FjpAF5bT173BfV6HLuBdBd2bYevsUVDeJNmYnmJYsTLb",
+            "effects": {
+              "checkpoint": {
+                "sequenceNumber": 5
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+task 33, lines 234-258:
+//# run-graphql --cursors {"c":7,"t":18,"i":false}
+Response: {
+  "data": {
+    "transactionBlocks": {
+      "pageInfo": {
+        "hasPreviousPage": true,
+        "hasNextPage": false,
+        "startCursor": "eyJjIjo3LCJ0IjoxOSwiaSI6dHJ1ZX0",
+        "endCursor": "eyJjIjo3LCJ0IjoyMSwiaSI6dHJ1ZX0"
       },
       "edges": [
         {
           "cursor": "eyJjIjo3LCJ0IjoyMSwiaSI6ZmFsc2V9",
           "node": {
-            "digest": "G7DhbdbJeze8e5kmVLNY6aVKckM7yfrzadaABv71ssjx",
+            "digest": "Eq611DTcfsBjH1P9Smrv7xFYQZXNtUMgbQCUr5jo3ycJ",
             "effects": {
               "checkpoint": {
                 "sequenceNumber": 5

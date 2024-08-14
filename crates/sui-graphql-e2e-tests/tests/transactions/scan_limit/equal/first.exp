@@ -318,14 +318,14 @@ Response: {
   }
 }
 
-task 24, lines 254-279:
+task 24, lines 254-281:
 //# run-graphql --cursors {"c":4,"t":12,"i":true}
 Response: {
   "data": {
     "transactionBlocks": {
       "pageInfo": {
         "hasPreviousPage": true,
-        "hasNextPage": false,
+        "hasNextPage": true,
         "startCursor": "eyJjIjo0LCJ0IjoxMCwiaSI6dHJ1ZX0",
         "endCursor": "eyJjIjo0LCJ0IjoxMSwiaSI6dHJ1ZX0"
       },

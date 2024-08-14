@@ -256,6 +256,8 @@ module Test::M1 {
 # should yield startCursor at 10, endCursor at 11
 # and the result set consists of txs 10 and 11
 # the scanLimit is exclusive of the cursor, hence we reach tx 10 inclusively
+# there is a next page, which is the 12th tx, which should yield an empty set
+# per the filtering criteria
 {
   transactionBlocks(last: 2 scanLimit: 2 before: "@{cursor_0}" filter: {recvAddress: "@{B}" afterCheckpoint: 1 beforeCheckpoint: 5}) {
     pageInfo {

@@ -300,7 +300,7 @@ impl TransactionBlock {
             }
         }
 
-        if filter.is_empty() {
+        if filter.is_empty() || page.limit() < 1 || scan_limit.map_or(false, |v| v < 1) {
             return Ok(ScanConnection::new(false, false));
         }
 

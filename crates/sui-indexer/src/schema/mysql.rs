@@ -337,6 +337,15 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    full_objects_history (object_id, object_version) {
+        object_id -> Blob,
+        object_version -> Bigint,
+        object_status -> Smallint,
+        serialized_object -> Nullable<Mediumblob>,
+    }
+}
+
 #[macro_export]
 macro_rules! for_all_tables {
     ($action:path) => {

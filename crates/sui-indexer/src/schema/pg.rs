@@ -389,6 +389,15 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    full_objects_history (object_id, object_version) {
+        object_id -> Bytea,
+        object_version -> Int8,
+        object_status -> Int2,
+        serialized_object -> Nullable<Bytea>,
+    }
+}
+
 #[macro_export]
 macro_rules! for_all_tables {
     ($action:path) => {

@@ -57,8 +57,8 @@ impl TxBounds {
     /// Determines the `tx_sequence_number` range from the checkpoint bounds for a transaction block
     /// query. If no checkpoint range is specified, the default is between 0 and the
     /// `checkpoint_viewed_at`. The corresponding `tx_sequence_number` range is fetched from db, and
-    /// further adjusted by cursors and scan limit. If the after cursor exceeds rhs, or before
-    /// cursor is below lhs, or other inconsistency, return None.
+    /// further adjusted by cursors and scan limit. If there are any inconsistencies or invalid
+    /// combinations, i.e. `after` cursor is greater than the upper bound, return None.
     pub(crate) fn query(
         conn: &mut Conn,
         after_cp: Option<u64>,
@@ -68,12 +68,13 @@ impl TxBounds {
         scan_limit: Option<u64>,
         page: &Page<Cursor>,
     ) -> Result<Option<Self>, diesel::result::Error> {
-        // Increment the lower bound checkpoint by 1 so we can select its min tx_sequence_number
-        // inclusively.
+        // If `after_cp` is given, increment it by 1 so we can uniformly select the lower bound
+        // checkpoint's `min_tx_sequence_number`. The range is inclusive of this value.
         let lo_cp = max_option([after_cp.map(|x| x.saturating_add(1)), at_cp]).unwrap_or(0);
         // Assumes that `before_cp` is greater than 0. In the `TransactionBlock::paginate` flow, we
-        // check if `before_cp` is 0, and if so, short-circuit and produce no results. Decrements
-        // the upper bound checkpoint by 1 so we can select its max tx_sequence_number inclusively.
+        // check if `before_cp` is 0, and if so, short-circuit and produce no results. Similarly, if
+        // `before_cp` is given, decrement by 1 so we can select the upper bound checkpoint's
+        // `max_tx_sequence_number` uniformly. The range is inclusive of this value.
         let hi_cp = min_option([
             before_cp.map(|x| x.saturating_sub(1)),
             at_cp,
@@ -187,9 +188,6 @@ impl TxBounds {
 
     /// Whether there are more transactions to scan to the left of this page.
     pub(crate) fn scan_has_prev_page(&self) -> bool {
-        println!("self.lo: {}, self.scan_lo(): {}", self.lo, self.scan_lo());
-        println!("self.tx_lo(): {}", self.tx_lo());
-        println!("after: {:?}", self.after);
         // ah so here it is. let's say true lo is 2
         // and that first element at cursor 2 does match
         // so it makes sense that starting is at 2...

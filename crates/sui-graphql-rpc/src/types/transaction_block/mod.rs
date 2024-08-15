@@ -358,13 +358,6 @@ impl TransactionBlock {
                         .map(|x| x.tx_sequence_number)
                         .collect::<Vec<i64>>();
 
-                    println!(
-                        "how many tx_sequence_numbers: {}",
-                        tx_sequence_numbers.len()
-                    );
-
-                    println!("tx_sequence_numbers: {:?}", tx_sequence_numbers);
-
                     let transactions = conn.results(move || {
                         tx::transactions
                             .filter(tx::tx_sequence_number.eq_any(tx_sequence_numbers.clone()))
@@ -382,12 +375,6 @@ impl TransactionBlock {
         let Some(tx_bounds) = tx_bounds else {
             return Ok(conn);
         };
-
-        println!(
-            "scan_lo: {:?}, scan_hi: {:?}",
-            tx_bounds.scan_lo(),
-            tx_bounds.scan_hi()
-        );
 
         if scan_limit.is_some() {
             apply_scan_limited_pagination(&mut conn, &page_clone, tx_bounds, checkpoint_viewed_at);
@@ -554,7 +541,6 @@ fn apply_forward_scan_limited_pagination(
     );
 
     // can simplify to scan_limit.is_some()
-    println!("no next page?");
     // There are 4 scenarios that will yield `has_next_page=false`:
     // 1. met `limit`, `paginate_results` doesn't detect more results + more to scan
     // 2. met `limit`, `paginate_Results` doesn't detect more results + no more to scan

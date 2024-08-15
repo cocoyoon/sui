@@ -403,7 +403,6 @@ impl<C: CursorType + ScanLimited + Eq + Clone + Send + Sync + 'static> Page<C> {
     where
         T: Target<C> + Send + 'static,
     {
-        println!("results len: {}", results.len());
         // Detect whether the results imply the existence of a previous or next page.
         let (prev, next, prefix, suffix) =
             match (self.after(), f_cursor, l_cursor, self.before(), self.end) {
@@ -435,21 +434,14 @@ impl<C: CursorType + ScanLimited + Eq + Clone + Send + Sync + 'static> Page<C> {
                 // result set.
                 (after, Some(f), Some(l), before, End::Front) => {
                     let has_previous_page = after.is_some_and(|a| a.unlimited() == f);
-                    println!("has_previous_page: {}", has_previous_page);
                     let prefix = has_previous_page as usize;
 
                     // If results end with the before cursor, we will at least need to trim one element
                     // from the suffix and we trim more off the end if there is more after applying the
                     // limit.
                     let mut suffix = before.is_some_and(|b| b.unlimited() == l) as usize;
-                    println!("suffix from before: {}", suffix);
                     suffix += results.len().saturating_sub(self.limit() + prefix + suffix);
-                    println!(
-                        "suffix from results.len - (limit + prefix + suffix): {}",
-                        suffix
-                    );
                     let has_next_page = suffix > 0;
-                    println!("has_next_page: {}", has_next_page);
 
                     (has_previous_page, has_next_page, prefix, suffix)
                 }
@@ -460,7 +452,6 @@ impl<C: CursorType + ScanLimited + Eq + Clone + Send + Sync + 'static> Page<C> {
                     // This last element will get pruned from the result set.
                     let has_next_page = before.is_some_and(|b| b.unlimited() == l);
                     let suffix = has_next_page as usize;
-                    println!("drawing from the back, suffix: {}", suffix);
 
                     let mut prefix = after.is_some_and(|a| a.unlimited() == f) as usize;
                     prefix += results.len().saturating_sub(self.limit() + prefix + suffix);
@@ -485,9 +476,6 @@ impl<C: CursorType + ScanLimited + Eq + Clone + Send + Sync + 'static> Page<C> {
         if suffix > 0 {
             results.nth_back(suffix - 1);
         }
-
-        println!("results len now: {}", results.len());
-        println!("prefix: {}, suffix: {}", prefix, suffix);
 
         (prev, next, results)
     }

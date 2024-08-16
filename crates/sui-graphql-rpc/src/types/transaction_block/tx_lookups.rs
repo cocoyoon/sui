@@ -212,10 +212,6 @@ impl TxBounds {
 
     /// Whether there are more transactions to scan to the left of this page.
     pub(crate) fn scan_has_prev_page(&self) -> bool {
-        // ah so here it is. let's say true lo is 2
-        // and that first element at cursor 2 does match
-        // so it makes sense that starting is at 2...
-        // and there should be a next page right
         self.lo < self.inclusive_lo()
     }
 

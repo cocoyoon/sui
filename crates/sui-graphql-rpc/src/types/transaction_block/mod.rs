@@ -511,18 +511,19 @@ fn apply_scan_limited_pagination(
     checkpoint_viewed_at: u64,
 ) {
     if page.is_from_front() {
-        apply_forward_scan_limited_pagination(conn, page, tx_bounds, checkpoint_viewed_at);
+        apply_forward_scan_limited_pagination(conn, tx_bounds, checkpoint_viewed_at);
     } else {
         apply_backward_scan_limited_pagination(conn, page, tx_bounds, checkpoint_viewed_at);
     }
 }
 
-/// If a query is `scan_limited`, we will always modify the boundary cursors to the first and last
-/// transaction scanned, and adjust the `has_previous_page` and `has_next_page` flags per the new
-/// boundaries.
+/// When paginating forwards on a scan-limited query, the starting cursor and previous page flag
+/// will depend on whether the first tx scanned is the first tx in the scanning range. The ending
+/// cursor and next page flag wraps the last element of the result set if there are more matches in
+/// the scanned window that are truncated - if the page size is smaller than the scan limit - but
+/// otherwise is expanded out to the last tx scanned.
 fn apply_forward_scan_limited_pagination(
     conn: &mut ScanConnection<String, TransactionBlock>,
-    page: &Page<Cursor>,
     tx_bounds: TxBounds,
     checkpoint_viewed_at: u64,
 ) {
@@ -530,33 +531,21 @@ fn apply_forward_scan_limited_pagination(
     conn.start_cursor = Some(
         Cursor::new(cursor::TransactionBlockCursor {
             checkpoint_viewed_at,
-            tx_sequence_number: page
-                .after()
-                // If a cursor has been provided, we increment by 1 so that the cursor's element
-                // will appear in the previous page
-                .map_or(tx_bounds.scan_lo(), |c| c.tx_sequence_number + 1),
+            tx_sequence_number: tx_bounds.inclusive_lo(),
             is_scan_limited: true,
         })
         .encode_cursor(),
     );
 
-    // can simplify to scan_limit.is_some()
-    // There are 4 scenarios that will yield `has_next_page=false`:
-    // 1. met `limit`, `paginate_results` doesn't detect more results + more to scan
-    // 2. met `limit`, `paginate_Results` doesn't detect more results + no more to scan
-    // 3. less than `limit`, `paginate_results` doesn't detect more results + more to scan
-    // 4. less than `limit`, `paginate_results` doesn't detect more results + no more to scan
-    // Regardless of the scenario, we can set the `endCursor` to the last transaction scanned.
-
-    // There may be more results within the scanned range that are truncated, especially if `limit`
-    // is less than `scan_limit`, so only overwrite the end when the base pagination reports no next
-    // page.
+    // There may be more results within the scanned range that got truncated, which occurs when page
+    // size is less than `scan_limit`, so only overwrite the end when the base pagination reports no
+    // next page.
     if !conn.has_next_page {
         conn.has_next_page = tx_bounds.scan_has_next_page();
         conn.end_cursor = Some(
             Cursor::new(cursor::TransactionBlockCursor {
                 checkpoint_viewed_at,
-                tx_sequence_number: tx_bounds.scan_hi(),
+                tx_sequence_number: tx_bounds.inclusive_hi(),
                 is_scan_limited: true,
             })
             .encode_cursor(),
@@ -564,6 +553,11 @@ fn apply_forward_scan_limited_pagination(
     }
 }
 
+/// When paginating backwards on a scan-limited query, the ending cursor and next page flag will
+/// depend on whether the last tx scanned is the last tx in the scanning range. The starting cursor
+/// and previous page flag wraps the first element of the result set if there are more matches in
+/// the scanned window that are truncated - if the page size is smaller than the scan limit - but
+/// otherwise is expanded out to the first tx scanned.
 fn apply_backward_scan_limited_pagination(
     conn: &mut ScanConnection<String, TransactionBlock>,
     page: &Page<Cursor>,
@@ -574,23 +568,21 @@ fn apply_backward_scan_limited_pagination(
     conn.end_cursor = Some(
         Cursor::new(cursor::TransactionBlockCursor {
             checkpoint_viewed_at,
-            tx_sequence_number: page
-                .before()
-                .map_or(tx_bounds.scan_hi(), |c| c.tx_sequence_number - 1),
+            tx_sequence_number: tx_bounds.inclusive_hi(),
             is_scan_limited: true,
         })
         .encode_cursor(),
     );
 
-    // There may be more results within the scanned range that are truncated, especially if `limit`
-    // is less than `scan_limit`, so only overwrite the end when the base pagination reports no next
-    // page.
+    // There may be more results within the scanned range that are truncated, especially if page
+    // size is less than `scan_limit`, so only overwrite the end when the base pagination reports no
+    // next page.
     if !conn.has_previous_page {
         conn.has_previous_page = tx_bounds.scan_has_prev_page();
         conn.start_cursor = Some(
             Cursor::new(cursor::TransactionBlockCursor {
                 checkpoint_viewed_at,
-                tx_sequence_number: tx_bounds.scan_lo(),
+                tx_sequence_number: tx_bounds.inclusive_lo(),
                 is_scan_limited: true,
             })
             .encode_cursor(),

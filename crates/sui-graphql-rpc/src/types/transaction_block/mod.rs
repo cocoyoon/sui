@@ -274,10 +274,8 @@ impl TransactionBlock {
     ) -> Result<ScanConnection<String, TransactionBlock>, Error> {
         let limits = &ctx.data_unchecked::<ServiceConfig>().limits;
 
-        // If there is more than one `complex_filter` specified, then the caller has provided some
-        // arbitrary combination of `function`, `kind`, `recvAddress`, `inputObject`, or
-        // `changedObject`. Consequently, we require setting a `scanLimit`, or else we will return
-        // an error.
+        // If the caller has provided some arbitrary combination of `function`, `kind`,
+        // `recvAddress`, `inputObject`, or `changedObject`, we require setting a `scanLimit`.
         if let Some(scan_limit) = scan_limit {
             if scan_limit > limits.max_scan_limit as u64 {
                 return Err(Error::Client(format!(
@@ -300,14 +298,16 @@ impl TransactionBlock {
             }
         }
 
-        if filter.is_empty() || page.limit() < 1 || scan_limit.map_or(false, |v| v < 1) {
+        // If page size or scan limit is 0, we want to standardize behavior by returning an empty
+        // connection
+        if filter.is_empty() || page.limit() == 0 || scan_limit.is_some_and(|v| v == 0) {
             return Ok(ScanConnection::new(false, false));
         }
 
         let cursor_viewed_at = page.validate_cursor_consistency()?;
         let checkpoint_viewed_at = cursor_viewed_at.unwrap_or(checkpoint_viewed_at);
         let db: &Db = ctx.data_unchecked();
-        let page_clone = page.clone();
+        let is_from_front = page.is_from_front();
 
         use transactions::dsl as tx;
         let (prev, next, transactions, tx_bounds): (
@@ -377,7 +377,12 @@ impl TransactionBlock {
         };
 
         if scan_limit.is_some() {
-            apply_scan_limited_pagination(&mut conn, &page_clone, tx_bounds, checkpoint_viewed_at);
+            apply_scan_limited_pagination(
+                &mut conn,
+                tx_bounds,
+                checkpoint_viewed_at,
+                is_from_front,
+            );
         }
 
         for stored in transactions {
@@ -506,22 +511,22 @@ impl TryFrom<TransactionBlockEffects> for TransactionBlock {
 
 fn apply_scan_limited_pagination(
     conn: &mut ScanConnection<String, TransactionBlock>,
-    page: &Page<Cursor>,
     tx_bounds: TxBounds,
     checkpoint_viewed_at: u64,
+    is_from_front: bool,
 ) {
-    if page.is_from_front() {
+    if is_from_front {
         apply_forward_scan_limited_pagination(conn, tx_bounds, checkpoint_viewed_at);
     } else {
-        apply_backward_scan_limited_pagination(conn, page, tx_bounds, checkpoint_viewed_at);
+        apply_backward_scan_limited_pagination(conn, tx_bounds, checkpoint_viewed_at);
     }
 }
 
 /// When paginating forwards on a scan-limited query, the starting cursor and previous page flag
-/// will depend on whether the first tx scanned is the first tx in the scanning range. The ending
-/// cursor and next page flag wraps the last element of the result set if there are more matches in
-/// the scanned window that are truncated - if the page size is smaller than the scan limit - but
-/// otherwise is expanded out to the last tx scanned.
+/// will be the first tx scanned in the current window, and whether this window is within the
+/// scanning range. The ending cursor and next page flag wraps the last element of the result set if
+/// there are more matches in the scanned window that are truncated - if the page size is smaller
+/// than the scan limit - but otherwise is expanded out to the last tx scanned.
 fn apply_forward_scan_limited_pagination(
     conn: &mut ScanConnection<String, TransactionBlock>,
     tx_bounds: TxBounds,
@@ -553,14 +558,13 @@ fn apply_forward_scan_limited_pagination(
     }
 }
 
-/// When paginating backwards on a scan-limited query, the ending cursor and next page flag will
-/// depend on whether the last tx scanned is the last tx in the scanning range. The starting cursor
-/// and previous page flag wraps the first element of the result set if there are more matches in
-/// the scanned window that are truncated - if the page size is smaller than the scan limit - but
-/// otherwise is expanded out to the first tx scanned.
+/// When paginating backwards on a scan-limited query, the ending cursor and next page flag will be
+/// the last tx scanned in the current window, and whether this window is within the scanning range.
+/// The starting cursor and previous page flag wraps the first element of the result set if there
+/// are more matches in the scanned window that are truncated - if the page size is smaller than the
+/// scan limit - but otherwise is expanded out to the first tx scanned.
 fn apply_backward_scan_limited_pagination(
     conn: &mut ScanConnection<String, TransactionBlock>,
-    page: &Page<Cursor>,
     tx_bounds: TxBounds,
     checkpoint_viewed_at: u64,
 ) {

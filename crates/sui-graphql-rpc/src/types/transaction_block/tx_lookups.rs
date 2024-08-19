@@ -29,7 +29,11 @@ pub(crate) struct TxBounds {
     /// The inclusive upper bound tx_sequence_number corresponding to the last tx_sequence_number of
     /// the upper checkpoint bound before applying `before` cursor and `scan_limit`.
     pub hi: u64,
+    /// Exclusive starting cursor - the lower bound will snap to this value if it is larger than
+    /// `lo`.
     pub after: Option<u64>,
+    /// Exclusive ending cursor - the upper bound will snap to this value if it is smaller than
+    /// `hi`.
     pub before: Option<u64>,
     pub scan_limit: Option<u64>,
     pub is_from_front: bool,
@@ -80,7 +84,7 @@ impl TxBounds {
             at_cp,
             Some(checkpoint_viewed_at),
         ])
-        .unwrap();
+        .unwrap(); // SAFETY: we can unwrap because of the `Some(checkpoint_viewed_at)`
 
         use checkpoints::dsl;
 
@@ -138,7 +142,7 @@ impl TxBounds {
     }
 
     fn calculate_lo(&self, exclude_cursor: bool) -> u64 {
-        let cursor_lo = self.cursor_lo() + exclude_cursor as u64;
+        let cursor_lo = self.cursor_lo().saturating_add(exclude_cursor as u64);
 
         if self.is_from_front {
             cursor_lo
@@ -177,7 +181,7 @@ impl TxBounds {
     }
 
     fn calculate_hi(&self, exclude_cursor: bool) -> u64 {
-        let cursor_hi = self.cursor_hi() - exclude_cursor as u64;
+        let cursor_hi = self.cursor_hi().saturating_sub(exclude_cursor as u64);
 
         if !self.is_from_front {
             cursor_hi

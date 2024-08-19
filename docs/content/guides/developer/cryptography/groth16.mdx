@@ -18,7 +18,7 @@ The following example demonstrates how to create a Groth16 proof from a statemen
 
 ### Create circuit
 
-In this example, we crate a proof which demonstrates that we know a factorisation `a * b = c` of a publicly known number `c` without revealing `a` and `b`.
+This example crates a proof, which demonstrates a known factorization `a * b = c` of a publicly-known number `c` without revealing `a` and `b`.
 
 ```circom
 pragma circom 2.1.5;
@@ -32,7 +32,7 @@ template Main() {
 }
 component main = Main();
 ```
-Assuming that the [circom compiler has been installed](https://docs.circom.io/getting-started/installation/), the above circuit is compiled using the following command:
+Assuming that the [circom compiler has been installed](https://docs.circom.io/getting-started/installation/), the previous circuit is compiled using the following command:
 ```shell
 circom main.circom --r1cs --wasm
 ```
@@ -57,7 +57,7 @@ fn main() {
     let cfg = CircomConfig::<Bn254>::new("../circuit/main_js/main.wasm", "../circuit/main.r1cs").unwrap();
     let mut builder = CircomBuilder::new(cfg);
 
-    // Private inputs: A factorisation of a number
+    // Private inputs: A factorization of a number
     builder.push_input("a", 641);
     builder.push_input("b", 6_700_417);
 
@@ -97,9 +97,9 @@ fn main() {
     println!("Public inputs: {}", hex::encode(public_inputs_serialized));
 }
 ```
-Recall that this creates a proof that the prover knows a factorisation, in this case of the [5th Fermat number](https://en.wikipedia.org/wiki/Fermat_number#Factorization) (<i>2<sup>32</sup> + 1 = 4294967297 = 641 * 6700417</i>).
+Recall that this creates a proof that the prover knows a factorization, in this case of the [5th Fermat number](https://en.wikipedia.org/wiki/Fermat_number#Factorization) (<i>2<sup>32</sup> + 1 = 4294967297 = 641 * 6700417</i>).
 
-The output of the above function will be
+The output of this function is
 ```
 Verifying key: 94d781ec65145ed90beca1859d5f38ec4d1e30d4123424bb7b0c6fc618257b1551af0374b50e5da874ed3abbc80822e4378fdef9e72c423a66095361dacad8243d1a043fc217ea306d7c3dcab877be5f03502c824833fc4301ef8b712711c49ebd491d7424efffd121baf85244404bded1fe26bdf6ef5962a3361cef3ed1661d897d6654c60dca3d648ce82fa91dc737f35aa798fb52118bb20fd9ee1f84a7aabef505258940dc3bc9de41472e20634f311e5b6f7a17d82f2f2fcec06553f71e5cd295f9155e0f93cb7ed6f212d0ccddb01ebe7dd924c97a3f1fc9d03a9eb915020000000000000072548cb052d61ed254de62618c797853ad3b8a96c60141c2bfc12236638f1b0faf9ecf024817d8964c4b2fed6537bcd70600a85cdec0ca4b0435788dbffd81ab
 Proof: 212d4457550f258654a24a6871522797ab262dee4d7d1f89af7da90dc0904eac57ce183e6f7caca9a98755904c1398ff6288cec9877f98f2d3c776c448b9ad166839e09d77967b66129c4942eee6d3eaf4a0ce2a841acc873a46ae35e40f0088288d038857c70a1415300544d7cf376949a372049679afa35ee5206b58266184
@@ -113,9 +113,9 @@ The API in Sui for verifying a proof expects a special processed verification ke
 
 The output of the `prepare_verifying_key` function is a vector with four byte arrays, which corresponds to the `vk_gamma_abc_g1_bytes`, `alpha_g1_beta_g2_bytes`, `gamma_g2_neg_pc_bytes`, `delta_g2_neg_pc_bytes`.
 
-To verify a proof, you also need two more inputs, `public_inputs_bytes` and `proof_points_bytes`, which are printed by the program above.
+To verify a proof, you also need two more inputs, `public_inputs_bytes` and `proof_points_bytes`, which are printed by the previous program.
 
-The following example smart contract uses the output from the program above. It first prepares a verification key and verifies the corresponding proof. This example uses the BN254 elliptic curve construction, which is given as the first parameter to the `prepare_verifying_key` and `verify_groth16_proof` functions. You can use the `bls12381` function instead for BLS12-381 construction.
+The following example smart contract uses the output from the previously defined program. It first prepares a verification key and verifies the corresponding proof. This example uses the BN254 elliptic curve construction, which is given as the first parameter to the `prepare_verifying_key` and `verify_groth16_proof` functions. You can use the `bls12381` function instead for BLS12-381 construction.
 
 ```rust
 use sui::groth16;

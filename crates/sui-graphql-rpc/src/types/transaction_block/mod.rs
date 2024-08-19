@@ -536,7 +536,7 @@ fn apply_forward_scan_limited_pagination(
     conn.start_cursor = Some(
         Cursor::new(cursor::TransactionBlockCursor {
             checkpoint_viewed_at,
-            tx_sequence_number: tx_bounds.inclusive_lo(),
+            tx_sequence_number: tx_bounds.inclusive_scan_lo(),
             is_scan_limited: true,
         })
         .encode_cursor(),
@@ -550,7 +550,7 @@ fn apply_forward_scan_limited_pagination(
         conn.end_cursor = Some(
             Cursor::new(cursor::TransactionBlockCursor {
                 checkpoint_viewed_at,
-                tx_sequence_number: tx_bounds.inclusive_hi(),
+                tx_sequence_number: tx_bounds.inclusive_scan_hi(),
                 is_scan_limited: true,
             })
             .encode_cursor(),
@@ -572,7 +572,7 @@ fn apply_backward_scan_limited_pagination(
     conn.end_cursor = Some(
         Cursor::new(cursor::TransactionBlockCursor {
             checkpoint_viewed_at,
-            tx_sequence_number: tx_bounds.inclusive_hi(),
+            tx_sequence_number: tx_bounds.inclusive_scan_hi(),
             is_scan_limited: true,
         })
         .encode_cursor(),
@@ -586,7 +586,7 @@ fn apply_backward_scan_limited_pagination(
         conn.start_cursor = Some(
             Cursor::new(cursor::TransactionBlockCursor {
                 checkpoint_viewed_at,
-                tx_sequence_number: tx_bounds.inclusive_lo(),
+                tx_sequence_number: tx_bounds.inclusive_scan_lo(),
                 is_scan_limited: true,
             })
             .encode_cursor(),

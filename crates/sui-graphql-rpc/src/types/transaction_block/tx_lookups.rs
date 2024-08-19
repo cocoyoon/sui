@@ -141,6 +141,11 @@ impl TxBounds {
         max_option([self.after, Some(self.lo)]).unwrap()
     }
 
+    /// Determines the lower bound for the scanning range. `exclude_cursor` determines whether to
+    /// include `after` cursor in this calculation. When paginating backwards, the lower bound is
+    /// the larger of either the lower bound or the `tx_sequence_number` some `scan_limit` distance
+    /// less than the upper bound. The latter is additionally added by 1 if `before` cursor is None
+    /// to avoid over-counting.
     fn calculate_lo(&self, exclude_cursor: bool) -> u64 {
         let cursor_lo = self.cursor_lo().saturating_add(exclude_cursor as u64);
 
@@ -166,12 +171,12 @@ impl TxBounds {
     /// the lower bound is the larger between the former and the `tx_sequence_number` some
     /// `scan_limit` distance less than the upper bound.
     pub(crate) fn scan_lo(&self) -> u64 {
-        self.calculate_lo(false)
+        self.calculate_lo(/* exclude_cursor */ false)
     }
 
     /// The lower bound `tx_sequence_number` of the scanned transactions, exclusive of the `after`
     /// cursor.
-    pub(crate) fn inclusive_lo(&self) -> u64 {
+    pub(crate) fn inclusive_scan_lo(&self) -> u64 {
         self.calculate_lo(self.after.is_some())
     }
 
@@ -180,6 +185,11 @@ impl TxBounds {
         min_option([self.before, Some(self.hi)]).unwrap()
     }
 
+    /// Determines the upper bound for the scanning range. `exclude_cursor` determines whether to
+    /// include `before` cursor in this calculation. When paginating forwards, the upper bound is
+    /// the smaller of either the upper bound or the `tx_sequence_number` some `scan_limit` distance
+    /// more than the lower bound. The latter is additionally subtracted by 1 if `after` cursor is
+    /// None to avoid over-counting.
     fn calculate_hi(&self, exclude_cursor: bool) -> u64 {
         let cursor_hi = self.cursor_hi().saturating_sub(exclude_cursor as u64);
 
@@ -205,23 +215,23 @@ impl TxBounds {
     /// then the upper bound is the smaller between the former and the `tx_sequence_number` some
     /// `scan_limit` distance more than the lower bound.
     pub(crate) fn scan_hi(&self) -> u64 {
-        self.calculate_hi(false)
+        self.calculate_hi(/* exclude_cursor */ false)
     }
 
     /// The upper bound `tx_sequence_number` of the scanned transactions, exclusive of the `before`
     /// cursor.
-    pub(crate) fn inclusive_hi(&self) -> u64 {
+    pub(crate) fn inclusive_scan_hi(&self) -> u64 {
         self.calculate_hi(self.before.is_some())
     }
 
     /// Whether there are more transactions to scan to the left of this page.
     pub(crate) fn scan_has_prev_page(&self) -> bool {
-        self.lo < self.inclusive_lo()
+        self.lo < self.inclusive_scan_lo()
     }
 
     /// Whether there are more transactions to scan to the right of this page.
     pub(crate) fn scan_has_next_page(&self) -> bool {
-        self.inclusive_hi() < self.hi
+        self.inclusive_scan_hi() < self.hi
     }
 }
 

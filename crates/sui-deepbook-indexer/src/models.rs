@@ -24,8 +24,8 @@ pub struct OrderUpdate {
     pub is_bid: bool,
     pub quantity: i64,
     pub onchain_timestamp: i64,
-    pub trader: Option<String>,
-    pub balance_manager_id: Option<String>,
+    pub trader: String,
+    pub balance_manager_id: String,
 }
 
 #[derive(Queryable, Selectable, Insertable, Identifiable, Debug)]

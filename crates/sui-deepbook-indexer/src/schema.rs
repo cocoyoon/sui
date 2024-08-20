@@ -48,8 +48,8 @@ diesel::table! {
         is_bid -> Bool,
         quantity -> Int8,
         onchain_timestamp -> Int8,
-        trader -> Nullable<Text>,
-        balance_manager_id -> Nullable<Text>,
+        trader -> Text,
+        balance_manager_id -> Text,
     }
 }
 
@@ -70,7 +70,7 @@ diesel::table! {
         task_name -> Text,
         checkpoint -> Int8,
         target_checkpoint -> Int8,
-        timestamp -> Timestamp,
+        timestamp -> Nullable<Timestamp>,
     }
 }
 

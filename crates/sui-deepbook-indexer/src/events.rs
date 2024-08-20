@@ -23,24 +23,33 @@ pub struct MoveOrderFilledEvent {
     pub timestamp: u64,
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct MoveOrderCanceledEvent {
+    pub balance_manager_id: ObjectID,
     pub pool_id: ObjectID,
     pub order_id: u128,
     pub client_order_id: u64,
+    pub trader: SuiAddress,
     pub price: u64,
     pub is_bid: bool,
     pub base_asset_quantity_canceled: u64,
     pub timestamp: u64,
 }
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct MoveOrderModifiedEvent {
+    pub balance_manager_id: ObjectID,
     pub pool_id: ObjectID,
     pub order_id: u128,
     pub client_order_id: u64,
+    pub trader: SuiAddress,
     pub price: u64,
     pub is_bid: bool,
     pub new_quantity: u64,
     pub timestamp: u64,
 }
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct MoveOrderPlacedEvent {
     pub balance_manager_id: ObjectID,
     pub pool_id: ObjectID,
@@ -52,6 +61,8 @@ pub struct MoveOrderPlacedEvent {
     pub placed_quantity: u64,
     pub expire_timestamp: u64,
 }
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct MovePriceAddedEvent {
     pub conversion_rate: u64,
     pub timestamp: u64,
@@ -59,8 +70,10 @@ pub struct MovePriceAddedEvent {
     pub reference_pool: ObjectID,
     pub target_pool: ObjectID,
 }
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct MoveFlashLoanBorrowedEvent {
     pub pool_id: ObjectID,
     pub borrow_quantity: u64,
-    pub type_name: TypeTag,
+    pub type_name: String,
 }

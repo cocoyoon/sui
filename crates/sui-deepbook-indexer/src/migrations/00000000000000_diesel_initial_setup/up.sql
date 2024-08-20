@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS order_updates
     is_bid                      BOOLEAN      NOT NULL,
     quantity                    BIGINT       NOT NULL,
     onchain_timestamp           BIGINT       NOT NULL,
-    trader                      TEXT         NULL,
-    balance_manager_id          TEXT         NULL
+    balance_manager_id          TEXT         NOT NULL,
+    trader                      TEXT         NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS order_fills
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS progress_store
     task_name                   TEXT          PRIMARY KEY,
     checkpoint                  BIGINT        NOT NULL,
     target_checkpoint           BIGINT        DEFAULT 9223372036854775807 NOT NULL,
-    timestamp                   TIMESTAMP     DEFAULT now() NOT NULL
+    timestamp                   TIMESTAMP     DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS sui_error_transactions

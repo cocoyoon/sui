@@ -70,8 +70,8 @@ pub struct OrderUpdate {
     is_bid: bool,
     quantity: u64,
     onchain_timestamp: u64,
-    trader: Option<String>,
-    balance_manager_id: Option<String>,
+    trader: String,
+    balance_manager_id: String,
 }
 
 impl OrderUpdate {

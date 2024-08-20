@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use diesel::dsl::now;
 use diesel::{Connection, OptionalExtension, QueryDsl, RunQueryDsl, SelectableHelper};
 use diesel::{ExpressionMethods, TextExpressionMethods};
+use sui_types::base_types::ObjectID;
 use tracing::info;
 
 use sui_indexer_builder::indexer_builder::{DataMapper, IndexerProgressStore, Persistent};
@@ -15,7 +16,6 @@ use sui_types::effects::TransactionEffectsAPI;
 use sui_types::event::Event;
 use sui_types::execution_status::ExecutionStatus;
 use sui_types::full_checkpoint_content::CheckpointTransaction;
-use sui_types::{DEEPBOOK_ADDRESS, DEEPBOOK_PACKAGE_ID};
 
 use crate::events::{
     MoveFlashLoanBorrowedEvent, MoveOrderCanceledEvent, MoveOrderFilledEvent,
@@ -176,6 +176,7 @@ impl IndexerProgressStore for PgDeepbookPersistent {
 #[derive(Clone)]
 pub struct SuiDeepBookDataMapper {
     pub metrics: DeepBookIndexerMetrics,
+    pub package_id: ObjectID,
 }
 
 impl DataMapper<CheckpointTxnData, ProcessedTxnData> for SuiDeepBookDataMapper {
@@ -183,33 +184,40 @@ impl DataMapper<CheckpointTxnData, ProcessedTxnData> for SuiDeepBookDataMapper {
         &self,
         (data, checkpoint_num, timestamp_ms): CheckpointTxnData,
     ) -> Result<Vec<ProcessedTxnData>, Error> {
+        // TODO: figure out a way to skip transactions that aren't deepbook transactions
         // self.metrics.total_sui_bridge_transactions.inc();
-        if !data
-            .input_objects
-            .iter()
-            .any(|obj| obj.id() == DEEPBOOK_PACKAGE_ID)
-        {
-            return Ok(vec![]);
-        }
+        // if !data
+        //     .input_objects
+        //     .iter()
+        //     .any(|obj| obj.id() == self.package_id)
+        // {
+        //     return Ok(vec![]);
+        // }
 
         match &data.events {
             Some(events) => {
-                let token_transfers = events.data.iter().try_fold(vec![], |mut result, ev| {
-                    if let Some(data) = process_sui_event(ev, &data, checkpoint_num, timestamp_ms)?
-                    {
-                        result.push(data);
-                    }
-                    Ok::<_, anyhow::Error>(result)
-                })?;
+                let processed_sui_events =
+                    events.data.iter().try_fold(vec![], |mut result, ev| {
+                        if let Some(data) = process_sui_event(
+                            ev,
+                            &data,
+                            checkpoint_num,
+                            timestamp_ms,
+                            self.package_id,
+                        )? {
+                            result.push(data);
+                        }
+                        Ok::<_, anyhow::Error>(result)
+                    })?;
 
-                if !token_transfers.is_empty() {
+                if !processed_sui_events.is_empty() {
                     info!(
                         "SUI: Extracted {} deepbook data entries for tx {}.",
-                        token_transfers.len(),
+                        processed_sui_events.len(),
                         data.transaction.digest()
                     );
                 }
-                Ok(token_transfers)
+                Ok(processed_sui_events)
             }
             None => {
                 if let ExecutionStatus::Failure { error, command } = data.effects.status() {
@@ -233,8 +241,9 @@ fn process_sui_event(
     tx: &CheckpointTransaction,
     checkpoint: u64,
     timestamp_ms: u64,
+    package_id: ObjectID,
 ) -> Result<Option<ProcessedTxnData>, anyhow::Error> {
-    Ok(if ev.type_.address == DEEPBOOK_ADDRESS {
+    Ok(if ev.type_.address == *package_id {
         match ev.type_.name.as_str() {
             "OrderPlaced" => {
                 info!("Observed Deepbook Order Placed {:?}", ev);
@@ -248,12 +257,12 @@ fn process_sui_event(
                     pool_id: move_event.pool_id.to_string(),
                     order_id: move_event.order_id,
                     client_order_id: move_event.client_order_id,
-                    trader: Some(move_event.trader.to_string()),
                     price: move_event.price,
                     is_bid: move_event.is_bid,
                     onchain_timestamp: move_event.expire_timestamp,
                     quantity: move_event.placed_quantity,
-                    balance_manager_id: Some(move_event.balance_manager_id.to_string()),
+                    trader: move_event.trader.to_string(),
+                    balance_manager_id: move_event.balance_manager_id.to_string(),
                 }))
             }
             "OrderModified" => {
@@ -264,7 +273,7 @@ fn process_sui_event(
                     digest: tx.transaction.digest().to_string(),
                     sender: tx.transaction.sender_address().to_string(),
                     checkpoint,
-                    status: OrderUpdateStatus::Placed,
+                    status: OrderUpdateStatus::Modified,
                     pool_id: move_event.pool_id.to_string(),
                     order_id: move_event.order_id,
                     client_order_id: move_event.client_order_id,
@@ -272,8 +281,8 @@ fn process_sui_event(
                     is_bid: move_event.is_bid,
                     onchain_timestamp: move_event.timestamp,
                     quantity: move_event.new_quantity,
-                    trader: None,
-                    balance_manager_id: None,
+                    trader: move_event.trader.to_string(),
+                    balance_manager_id: move_event.balance_manager_id.to_string(),
                 }))
             }
             "OrderCanceled" => {
@@ -284,7 +293,7 @@ fn process_sui_event(
                     digest: tx.transaction.digest().to_string(),
                     sender: tx.transaction.sender_address().to_string(),
                     checkpoint,
-                    status: OrderUpdateStatus::Placed,
+                    status: OrderUpdateStatus::Canceled,
                     pool_id: move_event.pool_id.to_string(),
                     order_id: move_event.order_id,
                     client_order_id: move_event.client_order_id,
@@ -292,8 +301,8 @@ fn process_sui_event(
                     is_bid: move_event.is_bid,
                     onchain_timestamp: move_event.timestamp,
                     quantity: move_event.base_asset_quantity_canceled,
-                    trader: None,
-                    balance_manager_id: None,
+                    trader: move_event.trader.to_string(),
+                    balance_manager_id: move_event.balance_manager_id.to_string(),
                 }))
             }
             "OrderFilled" => {

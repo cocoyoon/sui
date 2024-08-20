@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::schema::{flashloans, order_fills, order_updates, pool_prices, sui_error_transactions};
-use crate::{schema, ProcessedTxnData};
+use crate::ProcessedTxnData;
 use diesel::{
     pg::PgConnection,
     r2d2::{ConnectionManager, Pool},
-    Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl, SelectableHelper,
+    Connection, RunQueryDsl,
 };
 
 pub(crate) type PgPool = Pool<ConnectionManager<PgConnection>>;

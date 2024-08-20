@@ -1,44 +1,79 @@
 -- Your SQL goes here
-CREATE TABLE IF NOT EXISTS modified_orders
+
+CREATE TABLE IF NOT EXISTS order_updates
 (
-    digest                      bytea        PRIMARY KEY,
-    sender                      bytea        NOT NULL,
+    digest                      TEXT         PRIMARY KEY,
+    sender                      TEXT         NOT NULL,
     checkpoint                  BIGINT       NOT NULL,
     timestamp                   TIMESTAMP    DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    pool_id                     bytea        NOT NULL,
-    order_id                    bytea        NOT NULL,
-    client_order_id             bytea        NOT NULL,
+    status                      TEXT         NOT NULL,
+    pool_id                     TEXT         NOT NULL,
+    order_id                    BIGINT       NOT NULL,
+    client_order_id             BIGINT       NOT NULL,
     price                       BIGINT       NOT NULL,
     is_bid                      BOOLEAN      NOT NULL,
-    new_quantity                BIGINT       NOT NULL,
-    onchain_timestamp           BIGINT       NOT NULL
+    quantity                    BIGINT       NOT NULL,
+    onchain_timestamp           BIGINT       NOT NULL,
+    trader                      TEXT         NULL,
+    balance_manager_id          TEXT         NULL
 );
 
-CREATE TABLE IF NOT EXISTS placed_orders
+CREATE TABLE IF NOT EXISTS order_fills
 (
-    digest                      bytea        PRIMARY KEY,
-    sender                      bytea        NOT NULL,
+    digest                      TEXT         PRIMARY KEY,
+    sender                      TEXT         NOT NULL,
     checkpoint                  BIGINT       NOT NULL,
     timestamp                   TIMESTAMP    DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    balance_manager_id          bytea        NOT NULL,
-    pool_id                     bytea        NOT NULL,
-    order_id                    bytea        NOT NULL,
-    client_order_id             bytea        NOT NULL,
-    trader                      bytea        NOT NULL,
+    pool_id                     TEXT         NOT NULL,
+    maker_order_id              BIGINT       NOT NULL,
+    taker_order_id              BIGINT       NOT NULL,
+    maker_client_order_id       BIGINT       NOT NULL,
+    taker_client_order_id       BIGINT       NOT NULL,
     price                       BIGINT       NOT NULL,
-    is_bid                      BOOLEAN      NOT NULL,
-    placed_quantity             BIGINT       NOT NULL,
-    expire_timestamp            BIGINT       NOT NULL
+    taker_is_bid                BOOLEAN      NOT NULL,
+    base_quantity               BIGINT       NOT NULL,
+    quote_quantity              BIGINT       NOT NULL,
+    maker_balance_manager_id    TEXT         NOT NULL,
+    taker_balance_manager_id    TEXT         NOT NULL,
+    onchain_timestamp           BIGINT       NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS flashloans
 (
-    digest                      bytea        PRIMARY KEY,
-    sender                      bytea        NOT NULL,
+    digest                      TEXT         PRIMARY KEY,
+    sender                      TEXT         NOT NULL,
     checkpoint                  BIGINT       NOT NULL,
     timestamp                   TIMESTAMP    DEFAULT CURRENT_TIMESTAMP NOT NULL,
     borrow                      BOOLEAN      NOT NULL,
-    pool_id                     bytea        NOT NULL,
+    pool_id                     TEXT         NOT NULL,
     borrow_quantity             BIGINT       NOT NULL,
     type_name                   TEXT         NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pool_prices
+(
+    digest                      TEXT         PRIMARY KEY,
+    sender                      TEXT         NOT NULL,
+    checkpoint                  BIGINT       NOT NULL,
+    timestamp                   TIMESTAMP    DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    target_pool                 TEXT         NOT NULL,
+    reference_pool              TEXT         NOT NULL,
+    conversion_rate             BIGINT       NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS progress_store
+(
+    task_name                   TEXT          PRIMARY KEY,
+    checkpoint                  BIGINT        NOT NULL,
+    target_checkpoint           BIGINT        DEFAULT 9223372036854775807 NOT NULL,
+    timestamp                   TIMESTAMP     DEFAULT now() NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sui_error_transactions
+(
+    txn_digest                  TEXT         PRIMARY KEY,
+    sender_address              TEXT         NOT NULL,
+    timestamp_ms                BIGINT       NOT NULL,
+    failure_status              TEXT         NOT NULL,
+    cmd_idx                     BIGINT
 );

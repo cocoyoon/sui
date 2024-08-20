@@ -8,9 +8,6 @@ use diesel::{Connection, OptionalExtension, QueryDsl, RunQueryDsl, SelectableHel
 use diesel::{ExpressionMethods, TextExpressionMethods};
 use tracing::info;
 
-use sui_bridge::events::{
-    MoveTokenDepositedEvent, MoveTokenTransferApproved, MoveTokenTransferClaimed,
-};
 use sui_indexer_builder::indexer_builder::{DataMapper, IndexerProgressStore, Persistent};
 use sui_indexer_builder::sui_datasource::CheckpointTxnData;
 use sui_indexer_builder::Task;
@@ -20,14 +17,18 @@ use sui_types::execution_status::ExecutionStatus;
 use sui_types::full_checkpoint_content::CheckpointTransaction;
 use sui_types::{DEEPBOOK_ADDRESS, DEEPBOOK_PACKAGE_ID};
 
+use crate::events::{
+    MoveFlashLoanBorrowedEvent, MoveOrderCanceledEvent, MoveOrderFilledEvent,
+    MoveOrderModifiedEvent, MoveOrderPlacedEvent, MovePriceAddedEvent,
+};
 use crate::metrics::DeepBookIndexerMetrics;
 use crate::postgres_manager::PgPool;
 use crate::schema::progress_store::{columns, dsl};
-use crate::schema::{
-    flashloans, modified_orders, placed_orders, progress_store, sui_error_transactions,
+use crate::schema::{flashloans, order_fills, order_updates, pool_prices, sui_error_transactions};
+use crate::{
+    models, schema, Flashloan, OrderFill, OrderUpdate, OrderUpdateStatus, PoolPrice,
+    ProcessedTxnData, SuiTxnError,
 };
-
-use crate::{models, schema, Flashloan, OrderModified, OrderPlaced, ProcessedTxnData, SuiTxnError};
 
 /// Persistent layer impl
 #[derive(Clone)]
@@ -51,20 +52,26 @@ impl Persistent<ProcessedTxnData> for PgDeepbookPersistent {
         connection.transaction(|conn| {
             for d in data {
                 match d {
-                    ProcessedTxnData::OrderPlaced(t) => {
-                        diesel::insert_into(placed_orders::table)
+                    ProcessedTxnData::OrderUpdate(t) => {
+                        diesel::insert_into(order_updates::table)
                             .values(&t.to_db())
                             .on_conflict_do_nothing()
                             .execute(conn)?;
                     }
-                    ProcessedTxnData::OrderModified(t) => {
-                        diesel::insert_into(modified_orders::table)
+                    ProcessedTxnData::OrderFill(t) => {
+                        diesel::insert_into(order_fills::table)
                             .values(&t.to_db())
                             .on_conflict_do_nothing()
                             .execute(conn)?;
                     }
                     ProcessedTxnData::Flashloan(t) => {
                         diesel::insert_into(flashloans::table)
+                            .values(&t.to_db())
+                            .on_conflict_do_nothing()
+                            .execute(conn)?;
+                    }
+                    ProcessedTxnData::PoolPrice(t) => {
+                        diesel::insert_into(pool_prices::table)
                             .values(&t.to_db())
                             .on_conflict_do_nothing()
                             .execute(conn)?;
@@ -233,40 +240,82 @@ fn process_sui_event(
                 info!("Observed Deepbook Order Placed {:?}", ev);
                 // metrics.total_sui_token_deposited.inc();
                 let move_event: MoveOrderPlacedEvent = bcs::from_bytes(&ev.contents)?;
-                Some(ProcessedTxnData::OrderPlaced(OrderPlaced {
-                    // TODO: map to correct fields
+                Some(ProcessedTxnData::OrderUpdate(OrderUpdate {
+                    digest: tx.transaction.digest().to_string(),
+                    sender: tx.transaction.sender_address().to_string(),
+                    checkpoint,
+                    status: OrderUpdateStatus::Placed,
+                    pool_id: move_event.pool_id.to_string(),
+                    order_id: move_event.order_id,
+                    client_order_id: move_event.client_order_id,
+                    trader: Some(move_event.trader.to_string()),
+                    price: move_event.price,
+                    is_bid: move_event.is_bid,
+                    onchain_timestamp: move_event.expire_timestamp,
+                    quantity: move_event.placed_quantity,
+                    balance_manager_id: Some(move_event.balance_manager_id.to_string()),
                 }))
             }
             "OrderModified" => {
                 info!("Observed Deepbook Order Modified {:?}", ev);
                 // metrics.total_sui_token_deposited.inc();
                 let move_event: MoveOrderModifiedEvent = bcs::from_bytes(&ev.contents)?;
-                Some(ProcessedTxnData::OrderModified(OrderModified {
-                    // TODO: map to correct fields
-                }))
-            }
-            "OrderInfoEvent" => {
-                info!("Observed Deepbook Order Info {:?}", ev);
-                // metrics.total_sui_token_deposited.inc();
-                let move_event: MoveOrderInfoEventEvent = bcs::from_bytes(&ev.contents)?;
-                Some(ProcessedTxnData::OrderModified(OrderModified {
-                    // TODO: map to correct fields
-                }))
-            }
-            "OrderFilled" => {
-                info!("Observed Deepbook Order Filled {:?}", ev);
-                // metrics.total_sui_token_deposited.inc();
-                let move_event: MoveOrderFilledEvent = bcs::from_bytes(&ev.contents)?;
-                Some(ProcessedTxnData::OrderModified(OrderModified {
-                    // TODO: map to correct fields
+                Some(ProcessedTxnData::OrderUpdate(OrderUpdate {
+                    digest: tx.transaction.digest().to_string(),
+                    sender: tx.transaction.sender_address().to_string(),
+                    checkpoint,
+                    status: OrderUpdateStatus::Placed,
+                    pool_id: move_event.pool_id.to_string(),
+                    order_id: move_event.order_id,
+                    client_order_id: move_event.client_order_id,
+                    price: move_event.price,
+                    is_bid: move_event.is_bid,
+                    onchain_timestamp: move_event.timestamp,
+                    quantity: move_event.new_quantity,
+                    trader: None,
+                    balance_manager_id: None,
                 }))
             }
             "OrderCanceled" => {
                 info!("Observed Deepbook Order Canceled {:?}", ev);
                 // metrics.total_sui_token_deposited.inc();
                 let move_event: MoveOrderCanceledEvent = bcs::from_bytes(&ev.contents)?;
-                Some(ProcessedTxnData::OrderModified(OrderModified {
-                    // TODO: map to correct fields
+                Some(ProcessedTxnData::OrderUpdate(OrderUpdate {
+                    digest: tx.transaction.digest().to_string(),
+                    sender: tx.transaction.sender_address().to_string(),
+                    checkpoint,
+                    status: OrderUpdateStatus::Placed,
+                    pool_id: move_event.pool_id.to_string(),
+                    order_id: move_event.order_id,
+                    client_order_id: move_event.client_order_id,
+                    price: move_event.price,
+                    is_bid: move_event.is_bid,
+                    onchain_timestamp: move_event.timestamp,
+                    quantity: move_event.base_asset_quantity_canceled,
+                    trader: None,
+                    balance_manager_id: None,
+                }))
+            }
+            "OrderFilled" => {
+                info!("Observed Deepbook Order Filled {:?}", ev);
+                // metrics.total_sui_token_deposited.inc();
+                let move_event: MoveOrderFilledEvent = bcs::from_bytes(&ev.contents)?;
+                Some(ProcessedTxnData::OrderFill(OrderFill {
+                    digest: tx.transaction.digest().to_string(),
+                    sender: tx.transaction.sender_address().to_string(),
+                    checkpoint,
+                    pool_id: move_event.pool_id.to_string(),
+                    maker_order_id: move_event.maker_order_id,
+                    taker_order_id: move_event.taker_order_id,
+                    maker_client_order_id: move_event.maker_client_order_id,
+                    taker_client_order_id: move_event.taker_client_order_id,
+                    price: move_event.price,
+                    taker_is_bid: move_event.taker_is_bid,
+                    base_quantity: move_event.base_quantity,
+                    quote_quantity: move_event.quote_quantity,
+                    maker_balance_manager_id: move_event.maker_balance_manager_id.to_string(),
+                    taker_balance_manager_id: move_event.taker_balance_manager_id.to_string(),
+                    onchain_timestamp: move_event.timestamp,
                 }))
             }
             "FlashLoanBorrowed" => {
@@ -274,7 +323,26 @@ fn process_sui_event(
                 // metrics.total_sui_token_deposited.inc();
                 let move_event: MoveFlashLoanBorrowedEvent = bcs::from_bytes(&ev.contents)?;
                 Some(ProcessedTxnData::Flashloan(Flashloan {
-                    // TODO: map to correct fields
+                    digest: tx.transaction.digest().to_string(),
+                    sender: tx.transaction.sender_address().to_string(),
+                    checkpoint,
+                    pool_id: move_event.pool_id.to_string(),
+                    borrow_quantity: move_event.borrow_quantity,
+                    borrow: true,
+                    type_name: move_event.type_name.to_string(),
+                }))
+            }
+            "PriceAdded" => {
+                info!("Observed Deepbook Price Addition {:?}", ev);
+                // metrics.total_sui_token_deposited.inc();
+                let move_event: MovePriceAddedEvent = bcs::from_bytes(&ev.contents)?;
+                Some(ProcessedTxnData::PoolPrice(PoolPrice {
+                    digest: tx.transaction.digest().to_string(),
+                    sender: tx.transaction.sender_address().to_string(),
+                    checkpoint,
+                    target_pool: move_event.target_pool.to_string(),
+                    conversion_rate: move_event.conversion_rate,
+                    reference_pool: move_event.reference_pool.to_string(),
                 }))
             }
 

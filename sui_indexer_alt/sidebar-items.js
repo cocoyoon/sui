@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["start_indexer"],"mod":["args","bootstrap","config","db","handlers","ingestion","metrics","models","pipeline","schema","task"],"struct":["Indexer","IndexerArgs"]};
